@@ -7,6 +7,7 @@ module.exports = {
     extend: {
       fontFamily: {
         sans: ["Roboto", "sans-serif", ...defaultTheme.fontFamily.sans],
+        serif: ["SimSun", "STSong", "Songti SC", "Noto Serif CJK SC", "serif", ...defaultTheme.fontFamily.serif],
       },
     },
   },
