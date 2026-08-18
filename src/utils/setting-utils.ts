@@ -9,12 +9,11 @@ export function getDefaultHue(): number {
 }
 
 export function getHue(): number {
-	const stored = localStorage.getItem("hue");
-	return stored ? Number.parseInt(stored, 10) : getDefaultHue();
+	// Theme color is fixed in config; ignore any stale localStorage value
+	return getDefaultHue();
 }
 
 export function setHue(hue: number): void {
-	localStorage.setItem("hue", String(hue));
 	const r = document.querySelector(":root") as HTMLElement;
 	if (!r) {
 		return;

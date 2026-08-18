@@ -73,7 +73,7 @@ const bannerOffset =
 ---
 
 <!DOCTYPE html>
-<html lang={siteLang} class="bg-[var(--page-bg)] transition text-[14px] md:text-[16px]"
+<html lang={siteLang} class="bg-[var(--page-bg)] bg-[image:var(--page-bg-image)] bg-cover bg-center bg-fixed transition text-[14px] md:text-[16px]"
 	  data-overlayscrollbars-initialize
 >
 	<head>
@@ -114,9 +114,8 @@ const bannerOffset =
 			// Dark mode is disabled: the site always renders in light mode
 			document.documentElement.classList.remove('dark');
 
-			// Load the hue from local storage
-			const hue = localStorage.getItem('hue') || configHue;
-			document.documentElement.style.setProperty('--hue', hue);
+			// Theme color is fixed in config (themeColor.fixed); ignore any stale localStorage value
+			document.documentElement.style.setProperty('--hue', configHue);
 
 			// calculate the --banner-height-extend, which needs to be a multiple of 4 to avoid blurry text
 			let offset = Math.floor(window.innerHeight * (BANNER_HEIGHT_EXTEND / 100));
