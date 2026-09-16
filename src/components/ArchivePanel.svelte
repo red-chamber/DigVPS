@@ -5,8 +5,8 @@ import I18nKey from "../i18n/i18nKey";
 import { i18n } from "../i18n/translation";
 import { getPostUrlBySlug } from "../utils/url-utils";
 
-export let tags: string[];
-export let categories: string[];
+export let tags: string[] = [];
+export let categories: string[] = [];
 export let sortedPosts: Post[] = [];
 
 const params = new URLSearchParams(window.location.search);
@@ -19,8 +19,9 @@ interface Post {
 	data: {
 		title: string;
 		tags: string[];
-		category?: string;
+		category?: string | null;
 		published: Date;
+		updated?: Date;
 	};
 }
 
@@ -35,6 +36,10 @@ function formatDate(date: Date) {
 	const month = (date.getMonth() + 1).toString().padStart(2, "0");
 	const day = date.getDate().toString().padStart(2, "0");
 	return `${month}-${day}`;
+}
+
+function timelineDate(post: Post) {
+	return post.data.updated || post.data.published;
 }
 
 function formatTag(tagList: string[]) {
@@ -64,7 +69,7 @@ onMount(async () => {
 
 	const grouped = filteredPosts.reduce(
 		(acc, post) => {
-			const year = post.data.published.getFullYear();
+			const year = timelineDate(post).getFullYear();
 			if (!acc[year]) {
 				acc[year] = [];
 			}
@@ -112,7 +117,7 @@ onMount(async () => {
                     <div class="flex flex-row justify-start items-center h-full">
                         <!-- date -->
                         <div class="w-[15%] md:w-[10%] transition text-sm text-right text-50">
-                            {formatDate(post.data.published)}
+							{formatDate(timelineDate(post))}
                         </div>
 
                         <!-- dot and line -->

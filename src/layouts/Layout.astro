@@ -187,13 +187,14 @@ import {
 	// SizeObserverPlugin,
 	// ClickScrollPlugin
 } from 'overlayscrollbars';
-import {getHue, getStoredTheme, setHue, setTheme} from "../utils/setting-utils";
+import {getHue, setHue, setTheme} from "../utils/setting-utils";
 import {pathsEqual, url} from "../utils/url-utils";
 import {
 	BANNER_HEIGHT,
 	BANNER_HEIGHT_HOME,
 	BANNER_HEIGHT_EXTEND,
-	MAIN_PANEL_OVERLAPS_BANNER_HEIGHT
+	MAIN_PANEL_OVERLAPS_BANNER_HEIGHT,
+	LIGHT_MODE,
 } from "../constants/constants";
 import { siteConfig } from '../config';
 
@@ -478,6 +479,7 @@ function scrollFunction() {
 	}
 }
 window.onscroll = scrollFunction
+scrollFunction()
 
 window.onresize = () => {
 	// calculate the --banner-height-extend, which needs to be a multiple of 4 to avoid blurry text

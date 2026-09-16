@@ -1,0 +1,86 @@
+---
+import { Icon } from "astro-icon/components";
+import { getCollection } from "astro:content";
+import MainGridLayout from "@layouts/MainGridLayout.astro";
+import { getPostUrlBySlug } from "@utils/url-utils";
+
+const notes = (await getCollection("posts", ({ data }) => Boolean(data.sourcePath)))
+	.sort((a, b) =>
+		a.data.sourcePath.localeCompare(b.data.sourcePath, "zh-CN", {
+			numeric: true,
+		}),
+	);
+
+type Note = (typeof notes)[number];
+type NoteSection = {
+	label: string;
+	slug: string;
+	order: number;
+	notes: Note[];
+};
+
+const sections = Array.from(
+	notes.reduce<Map<string, NoteSection>>((map, note) => {
+		const existing = map.get(note.data.sectionSlug) || {
+			label: note.data.section,
+			slug: note.data.sectionSlug,
+			order: note.data.sectionOrder,
+			notes: [],
+		};
+		existing.notes.push(note);
+		map.set(note.data.sectionSlug, existing);
+		return map;
+	}, new Map<string, NoteSection>()),
+).map(([, section]) => section).sort((a, b) => a.order - b.order);
+
+function directoryLabel(sourcePath: string) {
+	const parts = sourcePath.split("/").slice(1, -1);
+	return parts.join(" / ");
+}
+---
+
+<MainGridLayout title="学习笔记" description="计算机科学学习笔记与实践记录">
+	<div class="card-base px-6 py-7 md:px-9 md:py-8 mb-4 onload-animation">
+		<div class="flex items-center gap-3 mb-3">
+			<div class="h-11 w-11 rounded-lg bg-[var(--btn-regular-bg)] text-[var(--primary)] flex items-center justify-center">
+				<Icon name="material-symbols:library-books-outline-rounded" class="text-[1.75rem]" />
+			</div>
+			<div>
+				<h1 class="font-serif font-bold text-3xl text-black/90 dark:text-white/90">学习笔记</h1>
+				<p class="text-black/50 dark:text-white/50 mt-1">按学习领域整理，共 {notes.length} 篇</p>
+			</div>
+		</div>
+		<nav aria-label="笔记分类" class="flex flex-wrap gap-2 mt-5">
+			{sections.map((section) => (
+				<a href={`#${section.slug}`} class="btn-regular rounded-lg px-3 py-2 text-sm font-medium">
+					{section.label}<span class="ml-1.5 text-black/35 dark:text-white/35">{section.notes.length}</span>
+				</a>
+			))}
+		</nav>
+	</div>
+
+	{sections.map((section) => (
+		<section id={section.slug} class="card-base px-6 py-6 md:px-9 md:py-7 mb-4 scroll-mt-24 onload-animation">
+			<div class="flex items-baseline justify-between gap-4 border-b border-[var(--line-divider)] pb-3 mb-2">
+				<h2 class="font-serif font-bold text-2xl text-black/85 dark:text-white/85">{section.label}</h2>
+				<span class="text-sm text-black/40 dark:text-white/40 whitespace-nowrap">{section.notes.length} 篇</span>
+			</div>
+			<div class="divide-y divide-[var(--line-divider)]">
+				{section.notes.map((note) => {
+					const directory = directoryLabel(note.data.sourcePath);
+					return (
+						<a href={getPostUrlBySlug(note.slug)} class="group flex items-center justify-between gap-4 py-3.5 rounded-md hover:px-3 hover:bg-[var(--btn-plain-bg-hover)] transition-all">
+							<div class="min-w-0">
+								<div class="font-medium text-base text-black/75 dark:text-white/75 group-hover:text-[var(--primary)] transition-colors">
+									{note.data.title}
+								</div>
+								{directory && <div class="text-xs text-black/35 dark:text-white/35 mt-1 truncate">{directory}</div>}
+							</div>
+							<Icon name="material-symbols:chevron-right-rounded" class="text-xl shrink-0 text-black/25 dark:text-white/25 group-hover:text-[var(--primary)] transition-colors" />
+						</a>
+					);
+				})}
+			</div>
+		</section>
+	))}
+</MainGridLayout>

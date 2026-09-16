@@ -102,24 +102,33 @@ const mainPanelTop = siteConfig.banner.enable
     </div>
 </div>
 
-<!-- The things that should be under the banner, only the TOC for now -->
-<div class="absolute w-full z-0 hidden 2xl:block">
+<!-- Responsive table of contents: a right rail on wide screens and a floating panel elsewhere -->
+<div id="toc-wrapper" class:list={["fixed inset-0 2xl:absolute 2xl:inset-auto 2xl:w-full z-40 pointer-events-none transition", {"toc-hide": siteConfig.banner.enable}]}>
     <div class="relative max-w-[var(--page-width)] mx-auto">
-        <!-- TOC component -->
-        {siteConfig.toc.enable && <div id="toc-wrapper" class:list={["hidden lg:block transition absolute top-0 -right-[var(--toc-width)] w-[var(--toc-width)] items-center",
-            {"toc-hide": siteConfig.banner.enable}]}
-        >
-            <div id="toc-inner-wrapper" class="fixed top-14 w-[var(--toc-width)] h-[calc(100vh_-_20rem)] overflow-y-scroll overflow-x-hidden hide-scrollbar">
-                <div id="toc" class="w-full h-full transition-swup-fade ">
-                    <div class="h-8 w-full"></div>
-                    <TOC headings={headings}></TOC>
-                    <div class="h-8 w-full"></div>
+        <div id="toc" class="transition-swup-fade">
+            {siteConfig.toc.enable && headings.length > 0 && <>
+                <div class="hidden 2xl:block absolute top-0 -right-[var(--toc-width)] w-[var(--toc-width)] pointer-events-auto">
+                    <div class="toc-scroll-container fixed top-14 w-[var(--toc-width)] h-[calc(100vh_-_8rem)] overflow-y-auto overflow-x-hidden hide-scrollbar">
+                        <TOC headings={headings}></TOC>
+                    </div>
                 </div>
-            </div>
-        </div>}
 
-        <!-- #toc needs to exist for Swup to work normally -->
-        {!siteConfig.toc.enable && <div id="toc"></div>}
+                <details style="position: fixed; right: 1rem; bottom: 5.25rem; z-index: 70"
+                         class="group/toc md:!right-8 md:!bottom-[6rem] 2xl:!hidden pointer-events-auto">
+                    <summary aria-label="打开本页目录" class="list-none [&::-webkit-details-marker]:hidden cursor-pointer ml-auto w-fit h-12 px-4 rounded-full btn-card shadow-lg border border-[var(--line-color)] flex items-center gap-2 text-[var(--btn-content)] font-bold select-none">
+                        <Icon name="material-symbols:format-list-bulleted-rounded" class="text-xl" />
+                        <span>目录</span>
+                    </summary>
+                    <div class="toc-scroll-container absolute right-0 bottom-14 w-[min(20rem,calc(100vw_-_2rem))] max-h-[min(60vh,32rem)] overflow-y-auto overflow-x-hidden rounded-[var(--radius-large)] bg-[var(--float-panel-bg)] backdrop-blur-[6px] shadow-xl border border-[var(--line-color)] p-2">
+                        <TOC headings={headings}></TOC>
+                    </div>
+                </details>
+            </>}
+
+            {!siteConfig.toc.enable &&
+                <div></div>
+            }
+        </div>
     </div>
 </div>
 </Layout>
