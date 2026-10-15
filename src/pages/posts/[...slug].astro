@@ -27,13 +27,6 @@ const { Content, headings } = await entry.render();
 
 const { remarkPluginFrontmatter } = await entry.render();
 
-const sourceUrl = entry.data.sourcePath
-	? `https://github.com/red-chamber/Personal-Learning-Notes/blob/main/${entry.data.sourcePath
-			.split("/")
-			.map((segment: string) => encodeURIComponent(segment))
-			.join("/")}`
-	: "";
-
 const jsonLd = {
 	"@context": "https://schema.org",
 	"@type": "BlogPosting",
@@ -100,12 +93,6 @@ const jsonLd = {
                         tags={entry.data.tags}
                         category={entry.data.category}
                 ></PostMetadata>
-				{sourceUrl && (
-					<a href={sourceUrl} target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 text-sm text-[var(--btn-content)] hover:underline mb-5">
-						查看 GitHub 源文件
-						<Icon name="fa6-solid:arrow-up-right-from-square" class="text-xs" />
-					</a>
-				)}
                 {!entry.data.image && <div class="border-[var(--line-divider)] border-dashed border-b-[1px] mb-5"></div>}
             </div>
 

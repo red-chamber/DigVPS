@@ -52,16 +52,11 @@ export const navBarConfig: NavBarConfig = {
 			url: "/account/",
 			external: false,
 		},
-		{
-			name: "GitHub",
-			url: "https://github.com/red-chamber/", // Internal links should not include the base path, as it is automatically added
-			external: true, // Show an external link icon and will open in a new tab
-		},
 	],
 };
 
 export const profileConfig: ProfileConfig = {
-	avatar: "assets/images/demo-avatar.png", // Relative to the /src directory. Relative to the /public directory if it starts with '/'
+	avatar: "assets/images/doro.jpg", // Relative to the /src directory. Relative to the /public directory if it starts with '/'
 	name: "Cedrian",
 	bio: "A HUST student majoring in Computer Science.",
 	links: [

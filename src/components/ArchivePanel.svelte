@@ -1,13 +1,12 @@
 <script lang="ts">
 import { onMount } from "svelte";
 
-import I18nKey from "../i18n/i18nKey";
-import { i18n } from "../i18n/translation";
 import { getPostUrlBySlug } from "../utils/url-utils";
 
 export let tags: string[] = [];
 export let categories: string[] = [];
 export let sortedPosts: Post[] = [];
+export let archivedEntries: TimelineEntry[] = [];
 
 const params = new URLSearchParams(window.location.search);
 tags = params.has("tag") ? params.getAll("tag") : [];
@@ -22,12 +21,27 @@ interface Post {
 		category?: string | null;
 		published: Date;
 		updated?: Date;
+		history?: {
+			date: Date;
+			action: "published" | "updated";
+		}[];
 	};
+}
+
+interface TimelineEntry {
+	id: string;
+	title: string;
+	tags: string[];
+	category?: string | null;
+	date: Date;
+	action: "published" | "updated";
+	available: boolean;
+	slug?: string;
 }
 
 interface Group {
 	year: number;
-	posts: Post[];
+	entries: TimelineEntry[];
 }
 
 let groups: Group[] = [];
@@ -38,8 +52,45 @@ function formatDate(date: Date) {
 	return `${month}-${day}`;
 }
 
-function timelineDate(post: Post) {
-	return post.data.updated || post.data.published;
+function asDate(date: Date | string) {
+	return date instanceof Date ? date : new Date(date);
+}
+
+function entriesForPost(post: Post): TimelineEntry[] {
+	const candidates: {
+		date: Date;
+		action: "published" | "updated";
+	}[] = [
+		{ date: post.data.published, action: "published" as const },
+		...(post.data.history || []),
+	];
+
+	if (
+		post.data.updated &&
+		asDate(post.data.updated).getTime() !== asDate(post.data.published).getTime()
+	) {
+		candidates.push({ date: post.data.updated, action: "updated" });
+	}
+
+	const seen = new Set<string>();
+	return candidates
+		.map((event) => ({ ...event, date: asDate(event.date) }))
+		.filter((event) => {
+			const key = `${event.action}:${event.date.toISOString()}`;
+			if (seen.has(key)) return false;
+			seen.add(key);
+			return true;
+		})
+		.map((event) => ({
+			id: `${post.slug}:${event.action}:${event.date.toISOString()}`,
+			title: post.data.title,
+			tags: post.data.tags,
+			category: post.data.category,
+			date: event.date,
+			action: event.action,
+			available: true,
+			slug: post.slug,
+		}));
 }
 
 function formatTag(tagList: string[]) {
@@ -47,41 +98,44 @@ function formatTag(tagList: string[]) {
 }
 
 onMount(async () => {
-	let filteredPosts: Post[] = sortedPosts;
+	let filteredEntries: TimelineEntry[] = [
+		...sortedPosts.flatMap(entriesForPost),
+		...archivedEntries.map((entry) => ({ ...entry, date: asDate(entry.date) })),
+	].sort((a, b) => b.date.getTime() - a.date.getTime());
 
 	if (tags.length > 0) {
-		filteredPosts = filteredPosts.filter(
-			(post) =>
-				Array.isArray(post.data.tags) &&
-				post.data.tags.some((tag) => tags.includes(tag)),
+		filteredEntries = filteredEntries.filter(
+			(entry) =>
+				Array.isArray(entry.tags) &&
+				entry.tags.some((tag) => tags.includes(tag)),
 		);
 	}
 
 	if (categories.length > 0) {
-		filteredPosts = filteredPosts.filter(
-			(post) => post.data.category && categories.includes(post.data.category),
+		filteredEntries = filteredEntries.filter(
+			(entry) => entry.category && categories.includes(entry.category),
 		);
 	}
 
 	if (uncategorized) {
-		filteredPosts = filteredPosts.filter((post) => !post.data.category);
+		filteredEntries = filteredEntries.filter((entry) => !entry.category);
 	}
 
-	const grouped = filteredPosts.reduce(
-		(acc, post) => {
-			const year = timelineDate(post).getFullYear();
+	const grouped = filteredEntries.reduce(
+		(acc, entry) => {
+			const year = entry.date.getFullYear();
 			if (!acc[year]) {
 				acc[year] = [];
 			}
-			acc[year].push(post);
+			acc[year].push(entry);
 			return acc;
 		},
-		{} as Record<number, Post[]>,
+		{} as Record<number, TimelineEntry[]>,
 	);
 
 	const groupedPostsArray = Object.keys(grouped).map((yearStr) => ({
 		year: Number.parseInt(yearStr, 10),
-		posts: grouped[Number.parseInt(yearStr, 10)],
+		entries: grouped[Number.parseInt(yearStr, 10)],
 	}));
 
 	groupedPostsArray.sort((a, b) => b.year - a.year);
@@ -104,20 +158,23 @@ onMount(async () => {
                     ></div>
                 </div>
                 <div class="w-[70%] md:w-[80%] transition text-left text-50">
-                    {group.posts.length} {i18n(group.posts.length === 1 ? I18nKey.postCount : I18nKey.postsCount)}
+                    {group.entries.length} 条记录
                 </div>
             </div>
 
-            {#each group.posts as post}
-                <a
-                        href={getPostUrlBySlug(post.slug)}
-                        aria-label={post.data.title}
+            {#each group.entries as entry}
+                <svelte:element
+                        this={entry.available ? "a" : "div"}
+                        href={entry.available && entry.slug ? getPostUrlBySlug(entry.slug) : undefined}
+                        aria-label={entry.title}
                         class="group btn-plain !block h-10 w-full rounded-lg hover:text-[initial]"
+                        class:opacity-60={!entry.available}
+                        class:pointer-events-none={!entry.available}
                 >
                     <div class="flex flex-row justify-start items-center h-full">
                         <!-- date -->
                         <div class="w-[15%] md:w-[10%] transition text-sm text-right text-50">
-							{formatDate(timelineDate(post))}
+							{formatDate(entry.date)}
                         </div>
 
                         <!-- dot and line -->
@@ -138,7 +195,10 @@ onMount(async () => {
                      group-hover:translate-x-1 transition-all group-hover:text-[var(--primary)]
                      text-75 pr-8 whitespace-nowrap overflow-ellipsis overflow-hidden"
                         >
-                            {post.data.title}
+                            {entry.title}
+                            <span class="ml-2 text-xs font-normal text-30">
+                                {entry.action === "updated" ? "修改" : "提交"}{entry.available ? "" : "（已删除）"}
+                            </span>
                         </div>
 
                         <!-- tag list -->
@@ -146,10 +206,10 @@ onMount(async () => {
                                 class="hidden md:block md:w-[15%] text-left text-sm transition
                      whitespace-nowrap overflow-ellipsis overflow-hidden text-30"
                         >
-                            {formatTag(post.data.tags)}
+                            {formatTag(entry.tags)}
                         </div>
                     </div>
-                </a>
+                </svelte:element>
             {/each}
         </div>
     {/each}
