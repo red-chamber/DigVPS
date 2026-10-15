@@ -4,7 +4,8 @@ export const SESSION_COOKIE_NAME = "digvps_session";
 export const SESSION_TTL_SECONDS = 3 * 24 * 60 * 60;
 export const VERIFICATION_TTL_SECONDS = 10 * 60;
 export const VERIFICATION_RESEND_SECONDS = 60;
-export const PASSWORD_ITERATIONS = 600_000;
+// Cloudflare workerd enforces a hard ceiling of 100,000 PBKDF2 iterations.
+export const PASSWORD_ITERATIONS = 100_000;
 export const DEFAULT_EMAIL_FROM = "autoverification@163.com";
 
 const MAX_JSON_BYTES = 16 * 1024;

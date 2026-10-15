@@ -11,7 +11,7 @@ import {
 } from "../server/auth.js";
 
 const adminSalt = "RYzcl7QJPExAFwJ11EEF1Q";
-const adminHash = "_nkYpfprroN9GrFXP7gH9its_e65s2HYUueAUnXoWek";
+const adminHash = "vEiRzGYsUJflWA6cWwRtg7f5Pv5QfiFnKuL9RiXsSt0";
 
 assert.equal(await verifyPassword("history-redacted-test-password", adminHash, adminSalt), true);
 assert.equal(await verifyPassword("wrong", adminHash, adminSalt), false);

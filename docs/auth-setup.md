@@ -8,7 +8,7 @@
 - 注册验证码为六位数字，10 分钟过期，最多尝试 5 次。
 - 同一邮箱 60 秒内不能重复发送验证码。
 - 同一 IP 每小时最多为 5 个邮箱发起注册。
-- 密码使用 PBKDF2-HMAC-SHA256（600,000 次）加随机盐保存。
+- 密码使用 PBKDF2-HMAC-SHA256（Cloudflare Workers 允许的上限 100,000 次）加随机盐保存。
 - 连续 5 次登录失败后锁定账户 15 分钟。
 - 会话有效期固定为 3 天，浏览器 Cookie 使用 `HttpOnly`、`Secure`、`SameSite=Lax`。
 - 验证码、会话令牌和注册 IP 均只保存不可逆哈希。
@@ -26,6 +26,7 @@
 
 ```bash
 npx wrangler d1 execute digvps-auth --remote --file=migrations/0001_auth.sql
+npx wrangler d1 execute digvps-auth --remote --file=migrations/0002_cloudflare_pbkdf2_limit.sql
 ```
 
 迁移会创建三张表，并创建初始管理员：

@@ -53,7 +53,7 @@ INSERT OR IGNORE INTO users (
     'admin_root',
     'autoverification@163.com',
     'root',
-    '_nkYpfprroN9GrFXP7gH9its_e65s2HYUueAUnXoWek',
+    'vEiRzGYsUJflWA6cWwRtg7f5Pv5QfiFnKuL9RiXsSt0',
     'RYzcl7QJPExAFwJ11EEF1Q',
     1,
     'admin',
