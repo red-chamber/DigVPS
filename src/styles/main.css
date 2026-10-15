@@ -35,8 +35,8 @@
         pointer-events: none;
         background-color: var(--glass-card-bg);
         background-image:
-            radial-gradient(circle at 12% 0%, rgba(255, 255, 255, 0.44), transparent 38%),
-            linear-gradient(135deg, rgba(255, 255, 255, 0.22), rgba(214, 229, 248, 0.06) 55%, rgba(255, 255, 255, 0.14));
+            radial-gradient(circle at 12% 0%, rgba(255, 255, 255, 0.38), transparent 38%),
+            linear-gradient(135deg, rgba(255, 255, 255, 0.18), rgba(214, 229, 248, 0.05) 55%, rgba(255, 255, 255, 0.10));
     }
     h1, h2, h3, h4, h5, h6, p, a, span, li, ul, ol, blockquote, code, pre, table, th, td, strong {
         @apply transition;
