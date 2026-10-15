@@ -1,4 +1,5 @@
 const EXPECTED_USERNAME = "root";
+const RETIRED_WALLPAPER_PATH = "/background/valley.jpg";
 const EXPECTED_PASSWORD_SHA256 =
 	"6f7ac1823da81d2e52d1a1549ee69c85bbf8bb56d06682849e7c09da2785ce3b";
 
@@ -60,6 +61,16 @@ export const onRequest = async ({ request, next }) => {
 		!timingSafeEqual(passwordHash, EXPECTED_PASSWORD_SHA256)
 	) {
 		return unauthorized();
+	}
+
+	if (new URL(request.url).pathname === RETIRED_WALLPAPER_PATH) {
+		return new Response("Not found.", {
+			status: 404,
+			headers: {
+				"Cache-Control": "no-store",
+				"Content-Type": "text/plain; charset=UTF-8",
+			},
+		});
 	}
 
 	return next();
