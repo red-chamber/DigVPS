@@ -189,6 +189,7 @@ import {
 } from 'overlayscrollbars';
 import {getHue, setHue, setTheme} from "../utils/setting-utils";
 import {pathsEqual, url} from "../utils/url-utils";
+import {initAccountPage} from "../scripts/account-page";
 import {
 	BANNER_HEIGHT,
 	BANNER_HEIGHT_HOME,
@@ -354,6 +355,7 @@ function init() {
 	loadHue();
 	initCustomScrollbar();
 	showBanner();
+	initAccountPage();
 }
 
 /* Load settings when entering the site */
@@ -412,6 +414,7 @@ const setup = () => {
 		}
 	});
 	window.swup.hooks.on('page:view', () => {
+		initAccountPage();
 		// hide the temp high element when the transition is done
 		const heightExtend = document.getElementById('page-height-extend')
 		if (heightExtend) {

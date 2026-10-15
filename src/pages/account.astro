@@ -4,7 +4,7 @@ import MainGridLayout from "../layouts/MainGridLayout.astro";
 ---
 
 <MainGridLayout title="账户" description="管理当前 RC Domain 登录会话">
-	<section class="card-base px-6 py-7 md:px-9 md:py-8">
+	<section id="account-page" class="card-base px-6 py-7 md:px-9 md:py-8">
 		<div class="mb-6 flex items-center gap-3">
 			<div class="flex h-11 w-11 items-center justify-center rounded-lg bg-[var(--btn-regular-bg)] text-[var(--primary)]">
 				<Icon name="fa6-regular:user" class="text-[1.45rem]" />
@@ -36,54 +36,3 @@ import MainGridLayout from "../layouts/MainGridLayout.astro";
 		</div>
 	</section>
 </MainGridLayout>
-
-<script>
-	const loading = document.querySelector<HTMLElement>("#account-loading");
-	const details = document.querySelector<HTMLElement>("#account-details");
-	const email = document.querySelector<HTMLElement>("#account-email");
-	const role = document.querySelector<HTMLElement>("#account-role");
-	const expiry = document.querySelector<HTMLElement>("#account-expiry");
-	const message = document.querySelector<HTMLElement>("#account-message");
-	const logout = document.querySelector<HTMLButtonElement>("#logout-button");
-
-	async function loadAccount() {
-		try {
-			const response = await fetch("/api/auth/me", { cache: "no-store" });
-			if (response.status === 401) {
-				window.location.assign("/login/");
-				return;
-			}
-			const result = await response.json();
-			if (!response.ok) throw new Error(result.error || "账户信息读取失败。");
-			if (email) email.textContent = result.user.email;
-			if (role) role.textContent = result.user.role === "admin" ? "管理员" : "普通用户";
-			if (expiry) expiry.textContent = new Date(result.expiresAt * 1000).toLocaleString("zh-CN");
-			loading?.classList.add("hidden");
-			details?.classList.remove("hidden");
-		} catch (error) {
-			if (loading) {
-				loading.textContent = error instanceof Error ? error.message : "账户信息读取失败。";
-			}
-		}
-	}
-
-	logout?.addEventListener("click", async () => {
-		logout.disabled = true;
-		message?.classList.add("hidden");
-		try {
-			const response = await fetch("/api/auth/logout", { method: "POST" });
-			const result = await response.json();
-			if (!response.ok) throw new Error(result.error || "退出失败。");
-			window.location.assign("/login/");
-		} catch (error) {
-			if (message) {
-				message.textContent = error instanceof Error ? error.message : "退出失败。";
-				message.classList.remove("hidden");
-			}
-		} finally {
-			logout.disabled = false;
-		}
-	});
-
-	loadAccount();
-</script>
