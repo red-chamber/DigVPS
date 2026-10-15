@@ -12,9 +12,8 @@ const config = profileConfig;
        max-w-[12rem] lg:max-w-none overflow-hidden rounded-xl active:scale-95">
         <div class="absolute transition pointer-events-none group-hover:bg-black/30 group-active:bg-black/50
         w-full h-full z-50 flex items-center justify-center">
-            <Icon name="fa6-regular:address-card"
-                  class="transition opacity-0 scale-90 group-hover:scale-100 group-hover:opacity-100 text-white text-5xl">
-            </Icon>
+            <span class="transition opacity-0 scale-90 group-hover:scale-100 group-hover:opacity-100
+            text-white text-lg font-bold tracking-wide drop-shadow-md">Know More</span>
         </div>
         <ImageWrapper src={config.avatar || ""} alt="Profile Image of the Author" class="mx-auto lg:w-full h-full lg:mt-0 "></ImageWrapper>
     </a>
@@ -29,9 +28,8 @@ const config = profileConfig;
                     </a>
             )}
             {config.links.length == 1 && <a rel="me" aria-label={config.links[0].name} href={config.links[0].url} target="_blank"
-                                            class="btn-regular rounded-lg h-10 gap-2 px-3 font-bold active:scale-95">
-                <Icon name={config.links[0].icon} class="text-[1.5rem]"></Icon>
-                {config.links[0].name}
+                                            class="btn-regular rounded-xl h-12 w-12 active:scale-90">
+                <Icon name={config.links[0].icon} class="text-[2rem]"></Icon>
             </a>}
         </div>
     </div>
