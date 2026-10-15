@@ -36,7 +36,7 @@ import AuthLayout from "../layouts/AuthLayout.astro";
 		</label>
 
 		<p id="login-message" class="auth-message hidden" role="alert"></p>
-		<button id="login-submit" type="submit" class="auth-submit">登录</button>
+		<button id="login-submit" type="submit" class="auth-submit">确认登录</button>
 	</form>
 
 	<p class="mt-6 text-center text-sm text-black/50">
@@ -47,10 +47,45 @@ import AuthLayout from "../layouts/AuthLayout.astro";
 
 <style>
 	.auth-input {
-		@apply w-full rounded-lg border border-[var(--line-color)] bg-white/70 px-4 py-3 text-black/80 outline-none transition placeholder:text-black/30 focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)];
+		@apply w-full rounded-lg px-4 py-3 text-black/80 outline-none transition placeholder:text-black/35;
+		border: 1px solid oklch(0.58 0.055 190 / 0.42);
+		background: oklch(0.985 0.012 190 / 0.78);
+		box-shadow: inset 0 1px 2px oklch(0.25 0.03 190 / 0.07);
+	}
+	.auth-input:focus {
+		border-color: oklch(0.5 0.12 195);
+		box-shadow: 0 0 0 3px oklch(0.66 0.12 195 / 0.24);
 	}
 	.auth-submit {
-		@apply flex w-full items-center justify-center rounded-lg bg-[var(--primary)] px-4 py-3 font-bold text-white transition hover:brightness-105 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60;
+		display: flex;
+		min-height: 3.25rem;
+		width: 100%;
+		align-items: center;
+		justify-content: center;
+		border: 1px solid oklch(0.38 0.11 195);
+		border-radius: 0.65rem;
+		background: linear-gradient(135deg, oklch(0.51 0.13 195), oklch(0.47 0.12 170));
+		box-shadow: 0 10px 24px oklch(0.34 0.09 190 / 0.25);
+		color: white;
+		font-weight: 700;
+		letter-spacing: 0.04em;
+		transition: transform 150ms ease, box-shadow 150ms ease, filter 150ms ease;
+	}
+	.auth-submit:hover {
+		filter: brightness(1.08);
+		transform: translateY(-1px);
+		box-shadow: 0 13px 28px oklch(0.34 0.09 190 / 0.3);
+	}
+	.auth-submit:active {
+		transform: translateY(0) scale(0.99);
+	}
+	.auth-submit:focus-visible {
+		outline: 3px solid oklch(0.68 0.12 195 / 0.42);
+		outline-offset: 2px;
+	}
+	.auth-submit:disabled {
+		cursor: wait;
+		opacity: 0.66;
 	}
 	.auth-message {
 		@apply rounded-lg border px-4 py-3 text-sm;
@@ -76,6 +111,7 @@ import AuthLayout from "../layouts/AuthLayout.astro";
 		event.preventDefault();
 		if (!email || !password || !message || !submit) return;
 		submit.disabled = true;
+		submit.textContent = "正在登录…";
 		message.classList.add("hidden");
 		try {
 			const response = await fetch("/api/auth/login", {
@@ -93,6 +129,7 @@ import AuthLayout from "../layouts/AuthLayout.astro";
 			message.classList.remove("hidden");
 		} finally {
 			submit.disabled = false;
+			submit.textContent = "确认登录";
 		}
 	});
 </script>

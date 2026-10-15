@@ -12,18 +12,47 @@ const { title, description } = Astro.props;
 ---
 
 <Layout title={title} description={description}>
-	<main class="min-h-screen flex items-center justify-center px-4 py-10">
+	<main class="auth-stage min-h-screen flex items-center justify-center px-4 py-10">
 		<div class="w-full max-w-md onload-animation">
 			<a
 				href="/"
-				class="mx-auto mb-5 flex w-fit items-center gap-2 font-serif text-xl font-bold text-[var(--primary)]"
+				class="auth-brand mx-auto mb-5 flex w-fit items-center gap-2 rounded-full px-4 py-2 font-serif text-xl font-bold"
 			>
 				<Icon name="material-symbols:home-outline-rounded" class="text-3xl" />
 				{siteConfig.title}
 			</a>
-			<section class="card-base border border-[var(--line-color)] px-6 py-7 shadow-xl md:px-9 md:py-9">
+			<section class="auth-panel overflow-hidden rounded-[var(--radius-large)] px-6 py-7 md:px-9 md:py-9">
 				<slot />
 			</section>
 		</div>
 	</main>
 </Layout>
+
+<style>
+	.auth-stage {
+		background:
+			radial-gradient(circle at 18% 12%, oklch(0.94 0.08 190 / 0.72), transparent 36rem),
+			linear-gradient(135deg, oklch(0.88 0.055 200 / 0.42), oklch(0.91 0.05 160 / 0.38));
+	}
+
+	.auth-brand {
+		border: 1px solid oklch(0.58 0.075 190 / 0.36);
+		background: oklch(0.94 0.045 190 / 0.78);
+		color: oklch(0.39 0.105 195);
+		box-shadow: 0 8px 24px oklch(0.24 0.04 190 / 0.12);
+		backdrop-filter: blur(10px);
+	}
+
+	.auth-panel {
+		border: 1px solid oklch(0.56 0.07 190 / 0.42);
+		background: linear-gradient(
+			145deg,
+			oklch(0.94 0.045 195 / 0.95),
+			oklch(0.9 0.052 165 / 0.93)
+		);
+		box-shadow:
+			0 26px 70px oklch(0.22 0.045 195 / 0.2),
+			inset 0 1px 0 oklch(1 0 0 / 0.65);
+		backdrop-filter: blur(16px) saturate(1.12);
+	}
+</style>
