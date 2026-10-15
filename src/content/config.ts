@@ -15,6 +15,8 @@ const postsCollection = defineCollection({
 			.optional()
 			.default([]),
 		draft: z.boolean().optional().default(false),
+		// Optional author-written card introduction and SEO description.
+		// It is frontmatter metadata and is never generated from the Markdown body.
 		description: z.string().optional().default(""),
 		image: z.string().optional().default(""),
 		tags: z.array(z.string()).optional().default([]),
