@@ -1,9 +1,35 @@
-const EXPECTED_USERNAME = "root";
-const RETIRED_WALLPAPER_PATH = "/background/valley.jpg";
-const EXPECTED_PASSWORD_SHA256 =
-	"6f7ac1823da81d2e52d1a1549ee69c85bbf8bb56d06682849e7c09da2785ce3b";
+import {
+	authIsConfigured,
+	getSession,
+	json,
+	sha256,
+	timingSafeEqual,
+} from "../server/auth.js";
 
-function unauthorized() {
+const LEGACY_USERNAME = "root";
+const LEGACY_PASSWORD_SHA256 = "b3rBgj2oHS5S0aFUnuachbv4u1bQZoKEnnwJ2ieFzjs";
+const RETIRED_WALLPAPER_PATH = "/background/valley.jpg";
+
+const PUBLIC_PAGES = new Set(["/login", "/register"]);
+const PUBLIC_AUTH_APIS = new Set([
+	"/api/auth/login",
+	"/api/auth/register",
+	"/api/auth/verify",
+]);
+const PUBLIC_ASSET_PREFIXES = [
+	"/_astro/",
+	"/assets/",
+	"/background/",
+	"/favicon/",
+	"/pagefind/",
+];
+
+function normalizePath(pathname) {
+	if (pathname === "/") return pathname;
+	return pathname.replace(/\/+$/u, "");
+}
+
+function legacyUnauthorized() {
 	return new Response("Authentication required.", {
 		status: 401,
 		headers: {
@@ -16,7 +42,6 @@ function unauthorized() {
 
 function parseBasicAuthorization(header) {
 	if (!header?.startsWith("Basic ")) return null;
-
 	try {
 		const decoded = atob(header.slice(6).trim());
 		const separator = decoded.indexOf(":");
@@ -30,40 +55,42 @@ function parseBasicAuthorization(header) {
 	}
 }
 
-async function sha256(value) {
-	const digest = await crypto.subtle.digest(
-		"SHA-256",
-		new TextEncoder().encode(value),
-	);
-	return [...new Uint8Array(digest)]
-		.map((byte) => byte.toString(16).padStart(2, "0"))
-		.join("");
-}
-
-function timingSafeEqual(left, right) {
-	const length = Math.max(left.length, right.length);
-	let mismatch = left.length ^ right.length;
-	for (let index = 0; index < length; index += 1) {
-		mismatch |= (left.charCodeAt(index) || 0) ^ (right.charCodeAt(index) || 0);
-	}
-	return mismatch === 0;
-}
-
-export const onRequest = async ({ request, next }) => {
+async function legacyBasicAuth(request, next) {
 	const credentials = parseBasicAuthorization(
 		request.headers.get("Authorization"),
 	);
 	const username = credentials?.username ?? "";
 	const passwordHash = await sha256(credentials?.password ?? "");
-
 	if (
-		!timingSafeEqual(username, EXPECTED_USERNAME) ||
-		!timingSafeEqual(passwordHash, EXPECTED_PASSWORD_SHA256)
+		!timingSafeEqual(username, LEGACY_USERNAME) ||
+		!timingSafeEqual(passwordHash, LEGACY_PASSWORD_SHA256)
 	) {
-		return unauthorized();
+		return legacyUnauthorized();
 	}
-
 	if (new URL(request.url).pathname === RETIRED_WALLPAPER_PATH) {
+		return new Response("Not found.", { status: 404 });
+	}
+	return next();
+}
+
+function isPublicAsset(pathname) {
+	return PUBLIC_ASSET_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+}
+
+function loginRedirect(url) {
+	const loginUrl = new URL("/login/", url);
+	const next = `${url.pathname}${url.search}`;
+	if (next !== "/") loginUrl.searchParams.set("next", next);
+	return Response.redirect(loginUrl, 302);
+}
+
+export const onRequest = async (context) => {
+	const { request, env, next } = context;
+	if (!authIsConfigured(env)) return legacyBasicAuth(request, next);
+
+	const url = new URL(request.url);
+	const pathname = normalizePath(url.pathname);
+	if (url.pathname === RETIRED_WALLPAPER_PATH) {
 		return new Response("Not found.", {
 			status: 404,
 			headers: {
@@ -72,6 +99,42 @@ export const onRequest = async ({ request, next }) => {
 			},
 		});
 	}
+	if (isPublicAsset(url.pathname) || PUBLIC_AUTH_APIS.has(pathname)) {
+		return next();
+	}
 
-	return next();
+	let session;
+	try {
+		session = await getSession(context);
+	} catch (error) {
+		console.error("Session middleware failed:", error.message);
+		if (pathname.startsWith("/api/")) {
+			return json({ error: "会话服务暂时不可用。" }, 503);
+		}
+		return new Response("Authentication service unavailable.", {
+			status: 503,
+			headers: { "Cache-Control": "no-store" },
+		});
+	}
+
+	if (PUBLIC_PAGES.has(pathname)) {
+		return session ? Response.redirect(new URL("/", url), 302) : next();
+	}
+	if (!session) {
+		return pathname.startsWith("/api/")
+			? json({ error: "尚未登录。" }, 401)
+			: loginRedirect(url);
+	}
+
+	context.data.user = session.user;
+	const response = await next();
+	const contentType = response.headers.get("Content-Type") || "";
+	if (!contentType.includes("text/html")) return response;
+	const headers = new Headers(response.headers);
+	headers.set("Cache-Control", "private, no-store");
+	return new Response(response.body, {
+		status: response.status,
+		statusText: response.statusText,
+		headers,
+	});
 };

@@ -1,0 +1,180 @@
+---
+import AuthLayout from "../layouts/AuthLayout.astro";
+---
+
+<AuthLayout title="注册" description="注册 RC Domain 账户">
+	<header class="mb-7">
+		<h1 class="font-serif text-3xl font-bold text-black/85">注册</h1>
+		<p class="mt-2 text-sm text-black/50">使用邮箱接收六位验证码，验证后即可登录。</p>
+	</header>
+
+	<form id="registration-form" class="space-y-5">
+		<label class="block">
+			<span class="mb-2 block text-sm font-medium text-black/70">邮箱</span>
+			<input id="register-email" type="email" autocomplete="email" required class="auth-input" placeholder="name@example.com" />
+		</label>
+		<label class="block">
+			<span class="mb-2 block text-sm font-medium text-black/70">密码</span>
+			<input id="register-password" type="password" autocomplete="new-password" minlength="8" maxlength="128" required class="auth-input" placeholder="至少 8 个字符" />
+		</label>
+		<label class="block">
+			<span class="mb-2 block text-sm font-medium text-black/70">确认密码</span>
+			<input id="register-confirm" type="password" autocomplete="new-password" minlength="8" maxlength="128" required class="auth-input" placeholder="再次输入密码" />
+		</label>
+		<p id="registration-message" class="auth-message hidden" role="alert"></p>
+		<button id="registration-submit" type="submit" class="auth-submit">发送验证码</button>
+	</form>
+
+	<form id="verification-form" class="hidden space-y-5">
+		<div class="rounded-lg bg-[var(--btn-regular-bg)] px-4 py-3 text-sm text-black/60">
+			验证码已发送至 <strong id="verification-email" class="text-black/80"></strong>
+		</div>
+		<label class="block">
+			<span class="mb-2 block text-sm font-medium text-black/70">六位验证码</span>
+			<input id="verification-code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required class="auth-input text-center text-2xl tracking-[0.4em]" placeholder="000000" />
+		</label>
+		<p id="verification-message" class="auth-message hidden" role="alert"></p>
+		<button id="verification-submit" type="submit" class="auth-submit">验证并登录</button>
+		<div class="flex items-center justify-between text-sm">
+			<button id="change-email" type="button" class="text-black/45 hover:text-[var(--primary)]">更换邮箱</button>
+			<button id="resend-code" type="button" class="text-[var(--primary)] hover:underline disabled:opacity-50">重新发送</button>
+		</div>
+	</form>
+
+	<p class="mt-6 text-center text-sm text-black/50">
+		已有账户？
+		<a href="/login/" data-astro-reload class="font-medium text-[var(--primary)] hover:underline">登录</a>
+	</p>
+</AuthLayout>
+
+<style>
+	.auth-input {
+		@apply w-full rounded-lg border border-[var(--line-color)] bg-white/70 px-4 py-3 text-black/80 outline-none transition placeholder:text-black/30 focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)];
+	}
+	.auth-submit {
+		@apply flex w-full items-center justify-center rounded-lg bg-[var(--primary)] px-4 py-3 font-bold text-white transition hover:brightness-105 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60;
+	}
+	.auth-message {
+		@apply rounded-lg border px-4 py-3 text-sm;
+	}
+	.auth-message[data-kind="error"] {
+		@apply border-red-200 bg-red-50 text-red-700;
+	}
+	.auth-message[data-kind="success"] {
+		@apply border-emerald-200 bg-emerald-50 text-emerald-700;
+	}
+</style>
+
+<script>
+	const registrationForm = document.querySelector<HTMLFormElement>("#registration-form");
+	const verificationForm = document.querySelector<HTMLFormElement>("#verification-form");
+	const emailInput = document.querySelector<HTMLInputElement>("#register-email");
+	const passwordInput = document.querySelector<HTMLInputElement>("#register-password");
+	const confirmInput = document.querySelector<HTMLInputElement>("#register-confirm");
+	const registrationMessage = document.querySelector<HTMLParagraphElement>("#registration-message");
+	const registrationSubmit = document.querySelector<HTMLButtonElement>("#registration-submit");
+	const verificationEmail = document.querySelector<HTMLElement>("#verification-email");
+	const codeInput = document.querySelector<HTMLInputElement>("#verification-code");
+	const verificationMessage = document.querySelector<HTMLParagraphElement>("#verification-message");
+	const verificationSubmit = document.querySelector<HTMLButtonElement>("#verification-submit");
+	const resendButton = document.querySelector<HTMLButtonElement>("#resend-code");
+	const changeEmailButton = document.querySelector<HTMLButtonElement>("#change-email");
+
+	let pendingEmail = "";
+	let pendingPassword = "";
+
+	function showMessage(element: HTMLElement | null, text: string, kind: "error" | "success") {
+		if (!element) return;
+		element.textContent = text;
+		element.dataset.kind = kind;
+		element.classList.remove("hidden");
+	}
+
+	async function requestCode() {
+		if (!pendingEmail || !pendingPassword) return;
+		const response = await fetch("/api/auth/register", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ email: pendingEmail, password: pendingPassword }),
+		});
+		const result = await response.json();
+		if (!response.ok) throw new Error(result.error || "验证码发送失败。");
+	}
+
+	registrationForm?.addEventListener("submit", async (event) => {
+		event.preventDefault();
+		if (!emailInput || !passwordInput || !confirmInput || !registrationSubmit) return;
+		if (passwordInput.value !== confirmInput.value) {
+			showMessage(registrationMessage, "两次输入的密码不一致。", "error");
+			return;
+		}
+		pendingEmail = emailInput.value.trim();
+		pendingPassword = passwordInput.value;
+		registrationSubmit.disabled = true;
+		registrationMessage?.classList.add("hidden");
+		try {
+			await requestCode();
+			registrationForm.classList.add("hidden");
+			verificationForm?.classList.remove("hidden");
+			if (verificationEmail) verificationEmail.textContent = pendingEmail;
+			codeInput?.focus();
+		} catch (error) {
+			showMessage(
+				registrationMessage,
+				error instanceof Error ? error.message : "验证码发送失败。",
+				"error",
+			);
+		} finally {
+			registrationSubmit.disabled = false;
+		}
+	});
+
+	verificationForm?.addEventListener("submit", async (event) => {
+		event.preventDefault();
+		if (!codeInput || !verificationSubmit) return;
+		verificationSubmit.disabled = true;
+		verificationMessage?.classList.add("hidden");
+		try {
+			const response = await fetch("/api/auth/verify", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ email: pendingEmail, code: codeInput.value }),
+			});
+			const result = await response.json();
+			if (!response.ok) throw new Error(result.error || "邮箱验证失败。");
+			showMessage(verificationMessage, "验证成功，正在进入网站……", "success");
+			window.location.assign("/");
+		} catch (error) {
+			showMessage(
+				verificationMessage,
+				error instanceof Error ? error.message : "邮箱验证失败。",
+				"error",
+			);
+		} finally {
+			verificationSubmit.disabled = false;
+		}
+	});
+
+	resendButton?.addEventListener("click", async () => {
+		resendButton.disabled = true;
+		verificationMessage?.classList.add("hidden");
+		try {
+			await requestCode();
+			showMessage(verificationMessage, "验证码已重新发送。", "success");
+		} catch (error) {
+			showMessage(
+				verificationMessage,
+				error instanceof Error ? error.message : "验证码发送失败。",
+				"error",
+			);
+		} finally {
+			resendButton.disabled = false;
+		}
+	});
+
+	changeEmailButton?.addEventListener("click", () => {
+		verificationForm?.classList.add("hidden");
+		registrationForm?.classList.remove("hidden");
+		codeInput && (codeInput.value = "");
+	});
+</script>

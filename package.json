@@ -10,6 +10,7 @@
     "preview": "astro preview",
     "astro": "astro",
     "type-check": "tsc --noEmit --isolatedDeclarations",
+    "test-auth": "node scripts/test-auth.mjs",
     "new-post": "node scripts/new-post.js",
     "sync-notes": "node scripts/sync-learning-notes.mjs",
     "format": "biome format --write ./src",

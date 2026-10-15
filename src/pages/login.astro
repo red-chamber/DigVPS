@@ -1,0 +1,98 @@
+---
+import AuthLayout from "../layouts/AuthLayout.astro";
+---
+
+<AuthLayout title="登录" description="登录 RC Domain">
+	<header class="mb-7">
+		<h1 class="font-serif text-3xl font-bold text-black/85">登录</h1>
+		<p class="mt-2 text-sm text-black/50">登录状态会在当前设备保存 3 天。</p>
+	</header>
+
+	<form id="login-form" class="space-y-5">
+		<label class="block">
+			<span class="mb-2 block text-sm font-medium text-black/70">邮箱</span>
+			<input
+				id="login-email"
+				name="email"
+				type="text"
+				inputmode="email"
+				autocomplete="username"
+				required
+				class="auth-input"
+				placeholder="name@example.com"
+			/>
+		</label>
+		<label class="block">
+			<span class="mb-2 block text-sm font-medium text-black/70">密码</span>
+			<input
+				id="login-password"
+				name="password"
+				type="password"
+				autocomplete="current-password"
+				required
+				class="auth-input"
+				placeholder="输入密码"
+			/>
+		</label>
+
+		<p id="login-message" class="auth-message hidden" role="alert"></p>
+		<button id="login-submit" type="submit" class="auth-submit">登录</button>
+	</form>
+
+	<p class="mt-6 text-center text-sm text-black/50">
+		还没有账户？
+		<a href="/register/" data-astro-reload class="font-medium text-[var(--primary)] hover:underline">注册</a>
+	</p>
+</AuthLayout>
+
+<style>
+	.auth-input {
+		@apply w-full rounded-lg border border-[var(--line-color)] bg-white/70 px-4 py-3 text-black/80 outline-none transition placeholder:text-black/30 focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)];
+	}
+	.auth-submit {
+		@apply flex w-full items-center justify-center rounded-lg bg-[var(--primary)] px-4 py-3 font-bold text-white transition hover:brightness-105 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60;
+	}
+	.auth-message {
+		@apply rounded-lg border px-4 py-3 text-sm;
+	}
+	.auth-message[data-kind="error"] {
+		@apply border-red-200 bg-red-50 text-red-700;
+	}
+</style>
+
+<script>
+	function destinationAfterLogin() {
+		const next = new URL(window.location.href).searchParams.get("next");
+		return next?.startsWith("/") && !next.startsWith("//") ? next : "/";
+	}
+
+	const form = document.querySelector<HTMLFormElement>("#login-form");
+	const email = document.querySelector<HTMLInputElement>("#login-email");
+	const password = document.querySelector<HTMLInputElement>("#login-password");
+	const message = document.querySelector<HTMLParagraphElement>("#login-message");
+	const submit = document.querySelector<HTMLButtonElement>("#login-submit");
+
+	form?.addEventListener("submit", async (event) => {
+		event.preventDefault();
+		if (!email || !password || !message || !submit) return;
+		submit.disabled = true;
+		message.classList.add("hidden");
+		try {
+			const response = await fetch("/api/auth/login", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ email: email.value, password: password.value }),
+			});
+			const result = await response.json();
+			if (!response.ok) throw new Error(result.error || "登录失败。");
+			window.location.assign(destinationAfterLogin());
+		} catch (error) {
+			message.textContent =
+				error instanceof Error ? error.message : "登录失败，请稍后重试。";
+			message.dataset.kind = "error";
+			message.classList.remove("hidden");
+		} finally {
+			submit.disabled = false;
+		}
+	});
+</script>
