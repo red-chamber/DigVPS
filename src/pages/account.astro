@@ -35,4 +35,72 @@ import MainGridLayout from "../layouts/MainGridLayout.astro";
 			<button id="logout-button" type="button" class="btn-regular w-full rounded-lg px-4 py-3 font-bold">退出登录</button>
 		</div>
 	</section>
+
+	<section id="admin-activity-panel" class="card-base mt-6 hidden px-6 py-7 md:px-9 md:py-8">
+		<div class="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+			<div>
+				<p class="text-sm font-medium text-[var(--primary)]">ADMIN</p>
+				<h2 class="font-serif text-2xl font-bold text-black/90">用户活动</h2>
+				<p class="mt-1 text-sm text-black/50">查看所有账户、有效会话和最近访问记录</p>
+			</div>
+			<button id="admin-activity-refresh" type="button" class="btn-regular rounded-lg px-4 py-2 text-sm font-bold">刷新</button>
+		</div>
+
+		<div id="admin-activity-loading" class="rounded-lg bg-[var(--btn-regular-bg)] px-4 py-4 text-black/55">正在读取用户活动……</div>
+		<p id="admin-activity-message" class="hidden rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert"></p>
+
+		<div id="admin-activity-content" class="hidden space-y-7">
+			<div class="grid gap-3 sm:grid-cols-3">
+				<div class="rounded-lg border border-[var(--line-color)] bg-white/50 px-4 py-4">
+					<p class="text-xs text-black/45">用户总数</p>
+					<p id="admin-total-users" class="mt-1 text-2xl font-bold text-black/80">0</p>
+				</div>
+				<div class="rounded-lg border border-[var(--line-color)] bg-white/50 px-4 py-4">
+					<p class="text-xs text-black/45">已验证用户</p>
+					<p id="admin-verified-users" class="mt-1 text-2xl font-bold text-black/80">0</p>
+				</div>
+				<div class="rounded-lg border border-[var(--line-color)] bg-white/50 px-4 py-4">
+					<p class="text-xs text-black/45">有效会话</p>
+					<p id="admin-active-sessions" class="mt-1 text-2xl font-bold text-black/80">0</p>
+				</div>
+			</div>
+
+			<div>
+				<h3 class="mb-3 text-lg font-bold text-black/80">全部用户</h3>
+				<div class="overflow-x-auto rounded-lg border border-[var(--line-color)]">
+					<table class="min-w-full divide-y divide-[var(--line-divider)] text-left text-sm">
+						<thead class="bg-[var(--btn-regular-bg)] text-xs text-black/50">
+							<tr>
+								<th class="px-4 py-3 font-medium">账户</th>
+								<th class="px-4 py-3 font-medium">状态</th>
+								<th class="px-4 py-3 font-medium">注册时间</th>
+								<th class="px-4 py-3 font-medium">最近活动</th>
+								<th class="px-4 py-3 font-medium">会话</th>
+							</tr>
+						</thead>
+						<tbody id="admin-users-body" class="divide-y divide-[var(--line-divider)] bg-white/40"></tbody>
+					</table>
+				</div>
+			</div>
+
+			<div>
+				<h3 class="mb-3 text-lg font-bold text-black/80">活动时间线</h3>
+				<div class="overflow-x-auto rounded-lg border border-[var(--line-color)]">
+					<table class="min-w-full divide-y divide-[var(--line-divider)] text-left text-sm">
+						<thead class="bg-[var(--btn-regular-bg)] text-xs text-black/50">
+							<tr>
+								<th class="px-4 py-3 font-medium">时间</th>
+								<th class="px-4 py-3 font-medium">用户</th>
+								<th class="px-4 py-3 font-medium">活动</th>
+								<th class="px-4 py-3 font-medium">位置</th>
+								<th class="px-4 py-3 font-medium">客户端</th>
+							</tr>
+						</thead>
+						<tbody id="admin-activities-body" class="divide-y divide-[var(--line-divider)] bg-white/40"></tbody>
+					</table>
+				</div>
+				<button id="admin-activity-more" type="button" class="btn-regular mt-3 hidden w-full rounded-lg px-4 py-3 text-sm font-bold">加载更早记录</button>
+			</div>
+		</div>
+	</section>
 </MainGridLayout>

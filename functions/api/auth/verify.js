@@ -3,6 +3,7 @@ import {
 	json,
 	normalizeEmail,
 	readJson,
+	recordActivity,
 	requestHasSameOrigin,
 	sessionCookie,
 	timingSafeEqual,
@@ -86,6 +87,11 @@ export async function onRequestPost(context) {
 				session.expiresAt,
 			),
 		]);
+		await recordActivity(context, {
+			userId: record.id,
+			eventType: "email_verified",
+			path: "/api/auth/verify",
+		});
 
 		return json(
 			{

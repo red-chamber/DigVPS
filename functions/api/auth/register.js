@@ -8,6 +8,7 @@ import {
 	randomToken,
 	randomVerificationCode,
 	readJson,
+	recordActivity,
 	registrationIpLimit,
 	requestHasSameOrigin,
 	VERIFICATION_RESEND_SECONDS,
@@ -151,6 +152,11 @@ export async function onRequestPost(context) {
 		}
 
 		context.waitUntil?.(pruneExpiredAuthRecords(env.DB, now));
+		await recordActivity(context, {
+			userId,
+			eventType: "registration_requested",
+			path: "/api/auth/register",
+		});
 		return json({
 			ok: true,
 			email,

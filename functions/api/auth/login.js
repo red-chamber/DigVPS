@@ -6,6 +6,7 @@ import {
 	normalizeEmail,
 	performDummyPasswordCheck,
 	readJson,
+	recordActivity,
 	requestHasSameOrigin,
 	sessionCookie,
 	verifyPassword,
@@ -42,6 +43,11 @@ export async function onRequestPost(context) {
 			.first();
 
 		if (user?.locked_until && user.locked_until > now) {
+			await recordActivity(context, {
+				userId: user.id,
+				eventType: "login_failed",
+				path: "/api/auth/login",
+			});
 			return json(
 				{
 					error: "登录尝试次数过多，请稍后再试。",
@@ -78,10 +84,20 @@ export async function onRequestPost(context) {
 				)
 					.bind(failures, lockedUntil, user.id)
 					.run();
+				await recordActivity(context, {
+					userId: user.id,
+					eventType: "login_failed",
+					path: "/api/auth/login",
+				});
 			}
 			return json({ error: "邮箱或密码错误。" }, 401);
 		}
 		if (!user.email_verified) {
+			await recordActivity(context, {
+				userId: user.id,
+				eventType: "login_unverified",
+				path: "/api/auth/login",
+			});
 			return json({ error: "请先完成邮箱验证。" }, 403);
 		}
 
@@ -102,6 +118,11 @@ export async function onRequestPost(context) {
 				session.expiresAt,
 			),
 		]);
+		await recordActivity(context, {
+			userId: user.id,
+			eventType: "login_success",
+			path: "/api/auth/login",
+		});
 
 		return json(
 			{

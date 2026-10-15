@@ -248,6 +248,49 @@ export async function clientIpHash(env, request) {
 	return hmacSha256(env.AUTH_SECRET, `ip:${address}`);
 }
 
+function cleanActivityPath(value) {
+	if (!value) return null;
+	try {
+		const url = new URL(value, "https://activity.invalid");
+		return `${url.pathname}${url.search}`.slice(0, 500);
+	} catch {
+		return String(value).slice(0, 500);
+	}
+}
+
+export async function recordActivity(
+	context,
+	{ userId = null, eventType, path = null } = {},
+) {
+	if (!context?.env?.DB || !eventType) return;
+	try {
+		const ipHash = context.env.AUTH_SECRET
+			? await clientIpHash(context.env, context.request)
+			: null;
+		const userAgent = (
+			context.request.headers.get("User-Agent") || "unknown"
+		).slice(0, 300);
+		const now = Math.floor(Date.now() / 1000);
+		await context.env.DB.prepare(
+			`INSERT INTO user_activities
+			 (user_id, event_type, path, ip_hash, user_agent, created_at)
+			 VALUES (?1, ?2, ?3, ?4, ?5, ?6)`,
+		)
+			.bind(
+				userId,
+				String(eventType).slice(0, 64),
+				cleanActivityPath(path),
+				ipHash,
+				userAgent,
+				now,
+			)
+			.run();
+	} catch (error) {
+		// Activity logging must never prevent authentication or page delivery.
+		console.warn("Activity logging failed:", error.message);
+	}
+}
+
 export function verificationAttemptLimit() {
 	return MAX_VERIFICATION_ATTEMPTS;
 }

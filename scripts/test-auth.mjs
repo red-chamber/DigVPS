@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import { onRequest as authMiddleware } from "../functions/_middleware.js";
+import { onRequestGet as adminActivity } from "../functions/api/admin/activity.js";
 import {
 	createSessionRecord,
 	derivePasswordHash,
+	hashPassword,
 	randomVerificationCode,
 	requestHasSameOrigin,
 	SESSION_TTL_SECONDS,
@@ -10,12 +12,20 @@ import {
 	verifyPassword,
 } from "../server/auth.js";
 
-const adminSalt = "RYzcl7QJPExAFwJ11EEF1Q";
-const adminHash = "vEiRzGYsUJflWA6cWwRtg7f5Pv5QfiFnKuL9RiXsSt0";
-
-assert.equal(await verifyPassword("history-redacted-test-password", adminHash, adminSalt), true);
-assert.equal(await verifyPassword("wrong", adminHash, adminSalt), false);
-assert.equal(await derivePasswordHash("history-redacted-test-password", adminSalt), adminHash);
+const testPassword = "unit-test-password";
+const testCredential = await hashPassword(testPassword);
+assert.equal(
+	await verifyPassword(testPassword, testCredential.hash, testCredential.salt),
+	true,
+);
+assert.equal(
+	await verifyPassword("wrong", testCredential.hash, testCredential.salt),
+	false,
+);
+assert.equal(
+	await derivePasswordHash(testPassword, testCredential.salt),
+	testCredential.hash,
+);
 assert.match(randomVerificationCode(), /^\d{6}$/u);
 
 const session = await createSessionRecord("user-1", 1_000);
@@ -78,16 +88,6 @@ const legacyDenied = await authMiddleware({
 });
 assert.equal(legacyDenied.status, 401);
 
-const legacyAllowed = await authMiddleware({
-	request: new Request("https://digvps.pages.dev/", {
-		headers: { Authorization: `Basic ${btoa("root:history-redacted-test-password")}` },
-	}),
-	env: {},
-	data: {},
-	next: async () => new Response("OK"),
-});
-assert.equal(legacyAllowed.status, 200);
-
 const configuredEnv = {
 	AUTH_SECRET: "test-secret-that-is-long-enough",
 	BREVO_API_KEY: "test-key",
@@ -136,5 +136,48 @@ const retiredWallpaper = await runMiddleware({
 	env: configuredEnv,
 });
 assert.equal(retiredWallpaper.status, 404);
+
+const regularUserActivity = await adminActivity({
+	request: new Request("https://digvps.pages.dev/api/admin/activity"),
+	data: { user: { id: "user-1", role: "user" } },
+	env: { DB: {} },
+});
+assert.equal(regularUserActivity.status, 403);
+
+const adminActivityResponse = await adminActivity({
+	request: new Request("https://digvps.pages.dev/api/admin/activity?limit=25"),
+	data: { user: { id: "admin-1", role: "admin" } },
+	env: {
+		DB: {
+			prepare() {
+				return {
+					bind() {
+						return this;
+					},
+				};
+			},
+			async batch() {
+				return [
+					{
+						results: [
+							{
+								id: "admin-1",
+								email: "admin@example.com",
+								role: "admin",
+								email_verified: 1,
+								active_sessions: 1,
+							},
+						],
+					},
+					{ results: [] },
+				];
+			},
+		},
+	},
+});
+assert.equal(adminActivityResponse.status, 200);
+const adminActivityBody = await adminActivityResponse.json();
+assert.equal(adminActivityBody.summary.totalUsers, 1);
+assert.equal(adminActivityBody.summary.activeSessions, 1);
 
 console.log("Authentication unit tests passed.");

@@ -2,6 +2,7 @@ import {
 	authIsConfigured,
 	getSession,
 	json,
+	recordActivity,
 	sha256,
 	timingSafeEqual,
 } from "../server/auth.js";
@@ -130,6 +131,15 @@ export const onRequest = async (context) => {
 	const response = await next();
 	const contentType = response.headers.get("Content-Type") || "";
 	if (!contentType.includes("text/html")) return response;
+	if (request.method === "GET" && response.status < 400) {
+		const activityPromise = recordActivity(context, {
+			userId: session.user.id,
+			eventType: "page_view",
+			path: `${url.pathname}${url.search}`,
+		});
+		if (context.waitUntil) context.waitUntil(activityPromise);
+		else await activityPromise;
+	}
 	const headers = new Headers(response.headers);
 	headers.set("Cache-Control", "private, no-store");
 	return new Response(response.body, {
