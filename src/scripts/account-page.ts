@@ -14,7 +14,6 @@ interface AdminUser {
 	created_at: number;
 	locked_until?: number | null;
 	failed_login_count: number;
-	active_sessions: number;
 	last_activity_at?: number | null;
 }
 
@@ -38,7 +37,6 @@ interface ActivityResponse {
 	summary: {
 		totalUsers: number;
 		verifiedUsers: number;
-		activeSessions: number;
 	};
 	error?: string;
 }
@@ -115,13 +113,12 @@ function renderUsers(root: HTMLElement, users: AdminUser[]) {
 			formatTimestamp(user.last_activity_at),
 			"whitespace-nowrap",
 		);
-		appendCell(row, String(user.active_sessions || 0));
 		body.append(row);
 	}
 	if (users.length === 0) {
 		const row = document.createElement("tr");
 		const cell = document.createElement("td");
-		cell.colSpan = 5;
+		cell.colSpan = 4;
 		cell.className = "px-4 py-6 text-center text-black/45";
 		cell.textContent = "暂无用户";
 		row.append(cell);
@@ -204,15 +201,10 @@ async function loadAdminActivity(root: HTMLElement, append = false) {
 			const verifiedUsers = root.querySelector<HTMLElement>(
 				"#admin-verified-users",
 			);
-			const activeSessions = root.querySelector<HTMLElement>(
-				"#admin-active-sessions",
-			);
 			if (totalUsers)
 				totalUsers.textContent = String(result.summary.totalUsers);
 			if (verifiedUsers)
 				verifiedUsers.textContent = String(result.summary.verifiedUsers);
-			if (activeSessions)
-				activeSessions.textContent = String(result.summary.activeSessions);
 			renderUsers(root, result.users);
 		}
 		renderActivities(root, result.activities, append);

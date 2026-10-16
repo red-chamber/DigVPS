@@ -7,6 +7,7 @@ import {
 	performDummyPasswordCheck,
 	readJson,
 	recordActivity,
+	replaceUserSessionStatements,
 	requestHasSameOrigin,
 	sessionCookie,
 	verifyPassword,
@@ -108,15 +109,7 @@ export async function onRequestPost(context) {
 				 SET failed_login_count = 0, locked_until = NULL
 				 WHERE id = ?1`,
 			).bind(user.id),
-			env.DB.prepare(
-				`INSERT INTO sessions (token_hash, user_id, created_at, expires_at)
-				 VALUES (?1, ?2, ?3, ?4)`,
-			).bind(
-				session.tokenHash,
-				session.userId,
-				session.createdAt,
-				session.expiresAt,
-			),
+			...replaceUserSessionStatements(env.DB, session),
 		]);
 		await recordActivity(context, {
 			userId: user.id,

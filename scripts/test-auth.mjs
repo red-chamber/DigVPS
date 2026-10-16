@@ -9,6 +9,7 @@ import {
 	derivePasswordHash,
 	hashPassword,
 	randomVerificationCode,
+	replaceUserSessionStatements,
 	requestHasSameOrigin,
 	SESSION_TTL_SECONDS,
 	sessionCookie,
@@ -48,6 +49,27 @@ const session = await createSessionRecord("user-1", 1_000);
 assert.equal(session.expiresAt, 1_000 + SESSION_TTL_SECONDS);
 assert.match(sessionCookie(session.token), /Max-Age=259200/u);
 assert.match(sessionCookie(session.token), /HttpOnly; Secure; SameSite=Lax/u);
+
+const sessionSql = [];
+const sessionBindings = [];
+const replacementStatements = replaceUserSessionStatements(
+	{
+		prepare(sql) {
+			sessionSql.push(sql);
+			return {
+				bind(...values) {
+					sessionBindings.push(values);
+					return { sql, values };
+				},
+			};
+		},
+	},
+	session,
+);
+assert.equal(replacementStatements.length, 2);
+assert.match(sessionSql[0], /DELETE FROM sessions WHERE user_id/u);
+assert.match(sessionSql[1], /INSERT INTO sessions/u);
+assert.deepEqual(sessionBindings[0], ["user-1"]);
 
 assert.equal(
 	requestHasSameOrigin(
@@ -214,7 +236,6 @@ const adminActivityResponse = await adminActivity({
 								email: "admin@example.com",
 								role: "admin",
 								email_verified: 1,
-								active_sessions: 1,
 							},
 						],
 					},
@@ -227,7 +248,7 @@ const adminActivityResponse = await adminActivity({
 assert.equal(adminActivityResponse.status, 200);
 const adminActivityBody = await adminActivityResponse.json();
 assert.equal(adminActivityBody.summary.totalUsers, 1);
-assert.equal(adminActivityBody.summary.activeSessions, 1);
+assert.equal("activeSessions" in adminActivityBody.summary, false);
 assert.match(adminSql[1], /event_type IN/u);
 assert.doesNotMatch(adminSql[1], /page_view/u);
 

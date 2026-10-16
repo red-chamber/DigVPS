@@ -96,7 +96,7 @@ import MainGridLayout from "../layouts/MainGridLayout.astro";
 			<div>
 				<p class="text-sm font-medium text-[var(--primary)]">ADMIN</p>
 				<h2 class="font-serif text-2xl font-bold text-black/90">用户活动</h2>
-				<p class="mt-1 text-sm text-black/50">查看账户、会话以及登录、评论、点赞和发布等重要事件</p>
+				<p class="mt-1 text-sm text-black/50">查看账户以及登录、评论、点赞和发布等重要事件</p>
 			</div>
 			<button id="admin-activity-refresh" type="button" class="btn-regular rounded-lg px-4 py-2 text-sm font-bold">刷新</button>
 		</div>
@@ -105,7 +105,7 @@ import MainGridLayout from "../layouts/MainGridLayout.astro";
 		<p id="admin-activity-message" class="hidden rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert"></p>
 
 		<div id="admin-activity-content" class="hidden space-y-7">
-			<div class="grid gap-3 sm:grid-cols-3">
+			<div class="grid gap-3 sm:grid-cols-2">
 				<div class="rounded-lg border border-[var(--line-color)] bg-white/50 px-4 py-4">
 					<p class="text-xs text-black/45">用户总数</p>
 					<p id="admin-total-users" class="mt-1 text-2xl font-bold text-black/80">0</p>
@@ -113,10 +113,6 @@ import MainGridLayout from "../layouts/MainGridLayout.astro";
 				<div class="rounded-lg border border-[var(--line-color)] bg-white/50 px-4 py-4">
 					<p class="text-xs text-black/45">已验证用户</p>
 					<p id="admin-verified-users" class="mt-1 text-2xl font-bold text-black/80">0</p>
-				</div>
-				<div class="rounded-lg border border-[var(--line-color)] bg-white/50 px-4 py-4">
-					<p class="text-xs text-black/45">有效会话</p>
-					<p id="admin-active-sessions" class="mt-1 text-2xl font-bold text-black/80">0</p>
 				</div>
 			</div>
 
@@ -130,7 +126,6 @@ import MainGridLayout from "../layouts/MainGridLayout.astro";
 								<th class="px-4 py-3 font-medium">状态</th>
 								<th class="px-4 py-3 font-medium">注册时间</th>
 								<th class="px-4 py-3 font-medium">最近活动</th>
-								<th class="px-4 py-3 font-medium">会话</th>
 							</tr>
 						</thead>
 						<tbody id="admin-users-body" class="divide-y divide-[var(--line-divider)] bg-white/40"></tbody>

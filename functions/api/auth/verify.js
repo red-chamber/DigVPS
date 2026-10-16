@@ -4,6 +4,7 @@ import {
 	normalizeEmail,
 	readJson,
 	recordActivity,
+	replaceUserSessionStatements,
 	requestHasSameOrigin,
 	sessionCookie,
 	timingSafeEqual,
@@ -77,15 +78,7 @@ export async function onRequestPost(context) {
 			env.DB.prepare("DELETE FROM email_verifications WHERE user_id = ?1").bind(
 				record.id,
 			),
-			env.DB.prepare(
-				`INSERT INTO sessions (token_hash, user_id, created_at, expires_at)
-				 VALUES (?1, ?2, ?3, ?4)`,
-			).bind(
-				session.tokenHash,
-				session.userId,
-				session.createdAt,
-				session.expiresAt,
-			),
+			...replaceUserSessionStatements(env.DB, session),
 		]);
 		await recordActivity(context, {
 			userId: record.id,

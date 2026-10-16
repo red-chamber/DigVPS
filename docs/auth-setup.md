@@ -10,10 +10,10 @@
 - 同一 IP 每小时最多为 5 个邮箱发起注册。
 - 密码使用 PBKDF2-HMAC-SHA256（Cloudflare Workers 允许的上限 100,000 次）加随机盐保存。
 - 连续 5 次登录失败后锁定账户 15 分钟。
-- 会话有效期固定为 3 天，浏览器 Cookie 使用 `HttpOnly`、`Secure`、`SameSite=Lax`。
+- 会话有效期固定为 3 天，浏览器 Cookie 使用 `HttpOnly`、`Secure`、`SameSite=Lax`。每个用户同一时间只能保留一个会话；新登录会立即使旧设备或旧浏览器的会话失效。
 - 验证码、会话令牌和注册 IP 均只保存不可逆哈希。
 - 已登录用户可以点赞已发布笔记，并在滚动 24 小时内提交最多 4 条、每条不超过 500 字的待审核评论。
-- 管理员可以在账户页审核评论、直接发布 Markdown 笔记，并查看全部用户、有效会话和重要活动；访问 IP 只保存不可逆哈希，不记录页面访问。
+- 管理员可以在账户页审核评论、直接发布 Markdown 笔记，并查看全部用户和重要活动；访问 IP 只保存不可逆哈希，不记录页面访问。
 
 ## 1. 配置 Brevo 发件人
 
@@ -31,6 +31,7 @@ npx wrangler d1 execute digvps-auth --remote --file=migrations/0001_auth.sql
 npx wrangler d1 execute digvps-auth --remote --file=migrations/0002_cloudflare_pbkdf2_limit.sql
 npx wrangler d1 execute digvps-auth --remote --file=migrations/0003_user_activity.sql
 npx wrangler d1 execute digvps-auth --remote --file=migrations/0004_notes_comments_likes.sql
+npx wrangler d1 execute digvps-auth --remote --file=migrations/0005_single_session_per_user.sql
 ```
 
 迁移会创建认证、活动、在线笔记、评论和点赞所需的数据表，并创建初始管理员：

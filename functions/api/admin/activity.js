@@ -33,22 +33,18 @@ export async function onRequestGet(context) {
 		MAX_LIMIT,
 	);
 	const cursor = positiveInteger(url.searchParams.get("cursor"), null);
-	const now = Math.floor(Date.now() / 1000);
-
 	try {
 		const [usersResult, activitiesResult] = await context.env.DB.batch([
 			context.env.DB.prepare(
 				`SELECT u.id, u.email, u.username, u.role, u.email_verified,
 				        u.created_at, u.verified_at, u.failed_login_count,
 				        u.locked_until,
-				        (SELECT COUNT(*) FROM sessions AS s
-				         WHERE s.user_id = u.id AND s.expires_at > ?1) AS active_sessions,
 			        (SELECT MAX(a.created_at) FROM user_activities AS a
 			         WHERE a.user_id = u.id
 			           AND a.event_type IN (${IMPORTANT_EVENTS_SQL})) AS last_activity_at
 				 FROM users AS u
 				 ORDER BY u.created_at DESC, u.id DESC`,
-			).bind(now),
+			),
 			context.env.DB.prepare(
 				`SELECT a.id, a.event_type, a.path, a.ip_hash, a.user_agent,
 				        a.created_at, a.user_id, u.email, u.username, u.role
@@ -80,10 +76,6 @@ export async function onRequestGet(context) {
 			summary: {
 				totalUsers: users.length,
 				verifiedUsers: users.filter((user) => user.email_verified).length,
-				activeSessions: users.reduce(
-					(total, user) => total + Number(user.active_sessions || 0),
-					0,
-				),
 			},
 		});
 	} catch (error) {

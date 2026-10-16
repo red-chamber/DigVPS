@@ -217,6 +217,23 @@ export async function createSessionRecord(
 	};
 }
 
+export function replaceUserSessionStatements(db, session) {
+	return [
+		db.prepare("DELETE FROM sessions WHERE user_id = ?1").bind(session.userId),
+		db
+			.prepare(
+				`INSERT INTO sessions (token_hash, user_id, created_at, expires_at)
+				 VALUES (?1, ?2, ?3, ?4)`,
+			)
+			.bind(
+				session.tokenHash,
+				session.userId,
+				session.createdAt,
+				session.expiresAt,
+			),
+	];
+}
+
 export async function getSession(context) {
 	const token = parseCookies(context.request).get(SESSION_COOKIE_NAME);
 	if (!token || !context.env?.DB) return null;
