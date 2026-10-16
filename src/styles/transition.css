@@ -20,9 +20,10 @@ html.is-animating .transition-swup-fade {
 
 /* Main components */
 .onload-animation {
-    opacity: 0;
+    opacity: 1;
     animation: 300ms fade-in-up;
-    animation-fill-mode: forwards;
+    /* Hide during the delay, then release the opacity layer so child glass can sample the wallpaper. */
+    animation-fill-mode: backwards;
 }
 #navbar {
     animation-delay: 0ms
