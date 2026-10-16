@@ -424,7 +424,14 @@ function bindAdminTools(root: HTMLElement) {
 			const result = await response.json();
 			if (!response.ok) throw new Error(result.error || "笔记发布失败。");
 			form.reset();
-			setAdminMessage(message, `笔记已发布：${result.path}`);
+			setAdminMessage(message, "笔记已发布。");
+			if (message) {
+				const link = document.createElement("a");
+				link.href = result.path;
+				link.className = "ml-2 font-bold underline";
+				link.textContent = "打开笔记";
+				message.append(link);
+			}
 			void loadAdminActivity(root);
 		} catch (error) {
 			setAdminMessage(

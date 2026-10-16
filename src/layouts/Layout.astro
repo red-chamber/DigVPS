@@ -190,6 +190,7 @@ import {
 import {getHue, setHue, setTheme} from "../utils/setting-utils";
 import {pathsEqual, url} from "../utils/url-utils";
 import {initAccountPage} from "../scripts/account-page";
+import {initDynamicNote} from "../scripts/dynamic-note";
 import {initNoteInteractions} from "../scripts/note-interactions";
 import {initNotesIndex} from "../scripts/notes-index";
 import {
@@ -358,6 +359,7 @@ function init() {
 	initCustomScrollbar();
 	showBanner();
 	initAccountPage();
+	initDynamicNote();
 	initNoteInteractions();
 	initNotesIndex();
 }
@@ -419,6 +421,9 @@ const setup = () => {
 	});
 	window.swup.hooks.on('page:view', () => {
 		initAccountPage();
+		initDynamicNote();
+		initNoteInteractions();
+		initNotesIndex();
 		// hide the temp high element when the transition is done
 		const heightExtend = document.getElementById('page-height-extend')
 		if (heightExtend) {
