@@ -11,8 +11,7 @@ function setMessage(root: HTMLElement, text: string, error = false) {
 	const message = root.querySelector<HTMLElement>(".note-interaction-message");
 	if (!message) return;
 	message.textContent = text;
-	message.classList.toggle("hidden", !text);
-	message.className = `note-interaction-message mt-4 rounded-lg px-4 py-3 text-sm ${
+	message.className = `note-interaction-message mt-4 rounded-lg px-4 py-3 text-sm ${text ? "" : "hidden "}${
 		error
 			? "border border-red-200 bg-red-50 text-red-700"
 			: "border border-emerald-200 bg-emerald-50 text-emerald-700"

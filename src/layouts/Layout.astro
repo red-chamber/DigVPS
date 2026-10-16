@@ -193,6 +193,7 @@ import {initAccountPage} from "../scripts/account-page";
 import {initDynamicNote} from "../scripts/dynamic-note";
 import {initNoteInteractions} from "../scripts/note-interactions";
 import {initNotesIndex} from "../scripts/notes-index";
+import {initPublishedNoteTaxonomy} from "../scripts/published-note-taxonomy";
 import {
 	BANNER_HEIGHT,
 	BANNER_HEIGHT_HOME,
@@ -362,6 +363,7 @@ function init() {
 	initDynamicNote();
 	initNoteInteractions();
 	initNotesIndex();
+	initPublishedNoteTaxonomy();
 }
 
 /* Load settings when entering the site */
@@ -424,6 +426,7 @@ const setup = () => {
 		initDynamicNote();
 		initNoteInteractions();
 		initNotesIndex();
+		initPublishedNoteTaxonomy();
 		// hide the temp high element when the transition is done
 		const heightExtend = document.getElementById('page-height-extend')
 		if (heightExtend) {

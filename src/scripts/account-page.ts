@@ -1,3 +1,5 @@
+import { invalidatePublishedNotes } from "./published-notes";
+
 const boundLogoutButtons = new WeakSet<HTMLButtonElement>();
 const boundAdminButtons = new WeakSet<HTMLButtonElement>();
 const boundAdminToolRoots = new WeakSet<HTMLElement>();
@@ -423,6 +425,7 @@ function bindAdminTools(root: HTMLElement) {
 			});
 			const result = await response.json();
 			if (!response.ok) throw new Error(result.error || "笔记发布失败。");
+			invalidatePublishedNotes();
 			form.reset();
 			setAdminMessage(message, "笔记已发布。");
 			if (message) {

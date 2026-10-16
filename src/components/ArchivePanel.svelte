@@ -1,6 +1,6 @@
 <script lang="ts">
 import { onMount } from "svelte";
-
+import { getPublishedNotes } from "../scripts/published-notes";
 import { getPostUrlBySlug } from "../utils/url-utils";
 
 export let tags: string[] = [];
@@ -37,6 +37,7 @@ interface TimelineEntry {
 	action: "published" | "updated";
 	available: boolean;
 	slug?: string;
+	url?: string;
 }
 
 interface Group {
@@ -67,7 +68,8 @@ function entriesForPost(post: Post): TimelineEntry[] {
 
 	if (
 		post.data.updated &&
-		asDate(post.data.updated).getTime() !== asDate(post.data.published).getTime()
+		asDate(post.data.updated).getTime() !==
+			asDate(post.data.published).getTime()
 	) {
 		candidates.push({ date: post.data.updated, action: "updated" });
 	}
@@ -97,9 +99,45 @@ function formatTag(tagList: string[]) {
 	return tagList.map((t) => `#${t}`).join(" ");
 }
 
+function entryHref(entry: TimelineEntry) {
+	if (!entry.available) return undefined;
+	return entry.url || (entry.slug ? getPostUrlBySlug(entry.slug) : undefined);
+}
+
 onMount(async () => {
+	let dynamicEntries: TimelineEntry[] = [];
+	try {
+		const notes = await getPublishedNotes();
+		dynamicEntries = notes.flatMap((note) => {
+			const published = new Date(note.published_at * 1000);
+			const entries: TimelineEntry[] = [
+				{
+					id: `dynamic:${note.slug}:published:${note.published_at}`,
+					title: note.title,
+					tags: note.tags,
+					category: note.category,
+					date: published,
+					action: "published",
+					available: true,
+					url: `/notes/read/?slug=${encodeURIComponent(note.slug)}`,
+				},
+			];
+			if (note.updated_at !== note.published_at) {
+				entries.push({
+					...entries[0],
+					id: `dynamic:${note.slug}:updated:${note.updated_at}`,
+					date: new Date(note.updated_at * 1000),
+					action: "updated",
+				});
+			}
+			return entries;
+		});
+	} catch (error) {
+		console.error("在线笔记时间线读取失败。", error);
+	}
 	let filteredEntries: TimelineEntry[] = [
 		...sortedPosts.flatMap(entriesForPost),
+		...dynamicEntries,
 		...archivedEntries.map((entry) => ({ ...entry, date: asDate(entry.date) })),
 	].sort((a, b) => b.date.getTime() - a.date.getTime());
 
@@ -165,7 +203,7 @@ onMount(async () => {
             {#each group.entries as entry}
                 <svelte:element
                         this={entry.available ? "a" : "div"}
-                        href={entry.available && entry.slug ? getPostUrlBySlug(entry.slug) : undefined}
+                        href={entryHref(entry)}
                         aria-label={entry.title}
                         class="group btn-plain !block h-10 w-full rounded-lg hover:text-[initial]"
                         class:opacity-60={!entry.available}
