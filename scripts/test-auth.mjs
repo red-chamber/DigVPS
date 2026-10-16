@@ -305,7 +305,10 @@ const rateLimitedComment = await submitComment({
 			prepare() {
 				return {
 					bind() {
-						return { run: async () => ({ meta: { changes: 0 } }) };
+						return {
+							first: async () => null,
+							run: async () => ({ meta: { changes: 0 } }),
+						};
 					},
 				};
 			},

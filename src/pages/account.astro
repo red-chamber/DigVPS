@@ -76,6 +76,21 @@ import MainGridLayout from "../layouts/MainGridLayout.astro";
 		</form>
 	</section>
 
+	<section id="admin-notes-panel" class="card-base mt-6 hidden px-6 py-7 md:px-9 md:py-8">
+		<div class="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+			<div>
+				<p class="text-sm font-medium text-[var(--primary)]">ADMIN</p>
+				<h2 class="font-serif text-2xl font-bold text-black/90">站内所有笔记</h2>
+				<p class="mt-1 text-sm text-black/50">统一管理仓库笔记与在线发布笔记</p>
+			</div>
+			<button id="admin-notes-refresh" type="button" class="btn-regular rounded-lg px-4 py-2 text-sm font-bold">刷新</button>
+		</div>
+		<p id="admin-notes-message" class="hidden rounded-lg px-4 py-3 text-sm" role="status"></p>
+		<div id="admin-notes-list" class="space-y-2">
+			<p class="rounded-lg bg-[var(--btn-regular-bg)] px-4 py-4 text-black/55">正在读取笔记……</p>
+		</div>
+	</section>
+
 	<section id="admin-comments-panel" class="card-base mt-6 hidden px-6 py-7 md:px-9 md:py-8">
 		<div class="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
 			<div>

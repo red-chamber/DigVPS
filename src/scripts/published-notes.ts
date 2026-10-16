@@ -8,9 +8,23 @@ export interface PublishedNoteSummary {
 	updated_at: number;
 }
 
-let publishedNotesRequest: Promise<PublishedNoteSummary[]> | null = null;
+export interface DeletedStaticNoteSummary {
+	note_key: string;
+	title: string;
+	category: string;
+	tags: string[];
+	deleted_at: number;
+}
 
-export function getPublishedNotes() {
+interface PublishedNoteData {
+	notes: PublishedNoteSummary[];
+	deletedStaticNotes: DeletedStaticNoteSummary[];
+	deletedDynamicNotes: PublishedNoteSummary[];
+}
+
+let publishedNotesRequest: Promise<PublishedNoteData> | null = null;
+
+export function getPublishedNoteData() {
 	if (!publishedNotesRequest) {
 		publishedNotesRequest = fetch("/api/published-notes", { cache: "no-store" })
 			.then(async (response) => {
@@ -18,7 +32,13 @@ export function getPublishedNotes() {
 				if (!response.ok) {
 					throw new Error(result.error || "在线笔记读取失败。");
 				}
-				return (result.notes || []) as PublishedNoteSummary[];
+				return {
+					notes: (result.notes || []) as PublishedNoteSummary[],
+					deletedStaticNotes: (result.deletedStaticNotes ||
+						[]) as DeletedStaticNoteSummary[],
+					deletedDynamicNotes: (result.deletedDynamicNotes ||
+						[]) as PublishedNoteSummary[],
+				};
 			})
 			.catch((error) => {
 				publishedNotesRequest = null;
@@ -26,6 +46,14 @@ export function getPublishedNotes() {
 			});
 	}
 	return publishedNotesRequest;
+}
+
+export async function getPublishedNotes() {
+	return (await getPublishedNoteData()).notes;
+}
+
+export async function getDeletedStaticNotes() {
+	return (await getPublishedNoteData()).deletedStaticNotes;
 }
 
 export function invalidatePublishedNotes() {

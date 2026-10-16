@@ -127,6 +127,25 @@ export const onRequest = async (context) => {
 	}
 
 	context.data.user = session.user;
+	if (pathname.startsWith("/posts/notes/")) {
+		let slug;
+		try {
+			slug = decodeURIComponent(pathname.slice("/posts/".length));
+		} catch {
+			return new Response("Not found.", { status: 404 });
+		}
+		const deleted = await env.DB.prepare(
+			"SELECT note_key FROM deleted_static_notes WHERE note_key = ?1",
+		)
+			.bind(`static:${slug}`)
+			.first();
+		if (deleted) {
+			return new Response("Not found.", {
+				status: 404,
+				headers: { "Cache-Control": "private, no-store" },
+			});
+		}
+	}
 	const response = await next();
 	const contentType = response.headers.get("Content-Type") || "";
 	if (!contentType.includes("text/html")) return response;

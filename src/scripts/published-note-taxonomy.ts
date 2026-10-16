@@ -1,4 +1,6 @@
-import { getPublishedNotes } from "./published-notes";
+import { getPublishedNoteData } from "./published-notes";
+
+const initializedTaxonomies = new WeakSet<HTMLElement>();
 
 function normalized(value: string) {
 	return value.trim().toLocaleLowerCase("zh-CN");
@@ -44,10 +46,22 @@ function createTagLink(name: string) {
 export function initPublishedNoteTaxonomy() {
 	const categories = document.querySelector<HTMLElement>("#categories");
 	const tags = document.querySelector<HTMLElement>("#tags");
-	if (!categories || !tags) return;
+	if (!categories || !tags || initializedTaxonomies.has(categories)) return;
+	initializedTaxonomies.add(categories);
 	void (async () => {
 		try {
-			const notes = await getPublishedNotes();
+			const { notes, deletedStaticNotes } = await getPublishedNoteData();
+			const deletedKeys = new Set(
+				deletedStaticNotes.map((note) => note.note_key),
+			);
+			for (const card of document.querySelectorAll<HTMLElement>(
+				"[data-static-note-key]",
+			)) {
+				if (!deletedKeys.has(card.dataset.staticNoteKey || "")) continue;
+				const separator = card.nextElementSibling;
+				card.remove();
+				if (separator?.classList.contains("border-dashed")) separator.remove();
+			}
 			const categoryCounts = new Map<string, { name: string; count: number }>();
 			const tagNames = new Map<string, string>();
 			for (const note of notes) {
@@ -68,6 +82,25 @@ export function initPublishedNoteTaxonomy() {
 					categories.querySelectorAll<HTMLElement>("[data-category-name]"),
 				).map((link) => [normalized(link.dataset.categoryName || ""), link]),
 			);
+			const deletedCategoryCounts = new Map<string, number>();
+			for (const note of deletedStaticNotes) {
+				const key = normalized(note.category);
+				deletedCategoryCounts.set(
+					key,
+					(deletedCategoryCounts.get(key) || 0) + 1,
+				);
+			}
+			for (const [key, link] of categoryLinks) {
+				const badge = link.querySelector<HTMLElement>("[data-category-count]");
+				if (!badge) continue;
+				const staticCount = Math.max(
+					0,
+					Number(badge.dataset.staticCount || 0) -
+						(deletedCategoryCounts.get(key) || 0),
+				);
+				badge.dataset.staticCount = String(staticCount);
+				badge.textContent = String(staticCount);
+			}
 			for (const [key, item] of categoryCounts) {
 				const existing = categoryLinks.get(key);
 				if (existing) {

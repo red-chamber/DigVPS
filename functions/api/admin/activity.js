@@ -11,6 +11,7 @@ const IMPORTANT_EVENTS_SQL = `
 	'comment_approved',
 	'comment_rejected',
 	'note_published',
+	'note_deleted',
 	'note_liked',
 	'account_deleted'
 `;

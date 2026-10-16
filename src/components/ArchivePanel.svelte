@@ -1,6 +1,6 @@
 <script lang="ts">
 import { onMount } from "svelte";
-import { getPublishedNotes } from "../scripts/published-notes";
+import { getPublishedNoteData } from "../scripts/published-notes";
 import { getPostUrlBySlug } from "../utils/url-utils";
 
 export let tags: string[] = [];
@@ -106,8 +106,11 @@ function entryHref(entry: TimelineEntry) {
 
 onMount(async () => {
 	let dynamicEntries: TimelineEntry[] = [];
+	let deletedKeys = new Set<string>();
 	try {
-		const notes = await getPublishedNotes();
+		const { notes, deletedStaticNotes, deletedDynamicNotes } =
+			await getPublishedNoteData();
+		deletedKeys = new Set(deletedStaticNotes.map((note) => note.note_key));
 		dynamicEntries = notes.flatMap((note) => {
 			const published = new Date(note.published_at * 1000);
 			const entries: TimelineEntry[] = [
@@ -132,11 +135,39 @@ onMount(async () => {
 			}
 			return entries;
 		});
+		dynamicEntries.push(
+			...deletedDynamicNotes.flatMap((note) => {
+				const base: TimelineEntry = {
+					id: `dynamic:${note.slug}:published:${note.published_at}`,
+					title: note.title,
+					tags: note.tags,
+					category: note.category,
+					date: new Date(note.published_at * 1000),
+					action: "published",
+					available: false,
+				};
+				return note.updated_at !== note.published_at
+					? [
+							base,
+							{
+								...base,
+								id: `dynamic:${note.slug}:updated:${note.updated_at}`,
+								date: new Date(note.updated_at * 1000),
+								action: "updated" as const,
+							},
+						]
+					: [base];
+			}),
+		);
 	} catch (error) {
 		console.error("在线笔记时间线读取失败。", error);
 	}
+	const staticEntries = sortedPosts.flatMap(entriesForPost).map((entry) => ({
+		...entry,
+		available: !deletedKeys.has(`static:${entry.slug}`),
+	}));
 	let filteredEntries: TimelineEntry[] = [
-		...sortedPosts.flatMap(entriesForPost),
+		...staticEntries,
 		...dynamicEntries,
 		...archivedEntries.map((entry) => ({ ...entry, date: asDate(entry.date) })),
 	].sort((a, b) => b.date.getTime() - a.date.getTime());

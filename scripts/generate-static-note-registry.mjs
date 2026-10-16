@@ -24,9 +24,27 @@ const notes = await Promise.all(
 			.replaceAll(path.sep, "/")
 			.replace(/\.md$/u, "");
 		const source = await readFile(file, "utf8");
-		const rawTitle = source.match(/^title:\s*(.+)$/mu)?.[1]?.trim() || slug;
-		const title = rawTitle.replace(/^(?:"(.*)"|'(.*)')$/u, "$1$2");
-		return [slug, title];
+		const scalar = (name, fallback = "") => {
+			const raw = source
+				.match(new RegExp(`^${name}:\\s*(.+)$`, "mu"))?.[1]
+				?.trim();
+			return (raw || fallback).replace(/^(?:"(.*)"|'(.*)')$/u, "$1$2");
+		};
+		let tags = [];
+		try {
+			tags = JSON.parse(scalar("tags", "[]"));
+		} catch {
+			tags = [];
+		}
+		return [
+			slug,
+			{
+				title: scalar("title", slug),
+				description: scalar("description"),
+				category: scalar("category"),
+				tags: Array.isArray(tags) ? tags.map(String) : [],
+			},
+		];
 	}),
 );
 notes.sort(([left], [right]) => left.localeCompare(right, "zh-CN"));

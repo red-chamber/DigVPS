@@ -35,9 +35,18 @@ export async function resolvePublishedNote(db, noteKey) {
 	const key = String(noteKey || "");
 	if (key.startsWith("static:")) {
 		const slug = key.slice("static:".length);
-		const title = STATIC_NOTES.get(slug);
-		if (!title) return null;
-		return { key, slug, title, type: "static" };
+		const metadata = STATIC_NOTES.get(slug);
+		if (!metadata) return null;
+		if (db?.prepare) {
+			const deleted = await db
+				.prepare(
+					"SELECT note_key FROM deleted_static_notes WHERE note_key = ?1",
+				)
+				.bind(key)
+				.first();
+			if (deleted) return null;
+		}
+		return { key, slug, title: metadata.title, type: "static", metadata };
 	}
 	if (!key.startsWith("dynamic:")) return null;
 	const slug = key.slice("dynamic:".length);

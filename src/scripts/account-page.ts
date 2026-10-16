@@ -52,6 +52,7 @@ const activityLabels: Record<string, string> = {
 	comment_approved: "接纳评论",
 	comment_rejected: "驳回评论",
 	note_published: "发布笔记",
+	note_deleted: "删除笔记",
 	note_liked: "点赞笔记",
 	account_deleted: "注销账户",
 };
@@ -266,6 +267,81 @@ interface PendingComment {
 	created_at: number;
 }
 
+interface AdminNote {
+	key: string;
+	type: "static" | "dynamic";
+	title: string;
+	description: string;
+	category: string;
+	tags: string[];
+	publishedAt?: number | null;
+	path: string;
+}
+
+function renderAdminNotes(root: HTMLElement, notes: AdminNote[]) {
+	const list = root.querySelector<HTMLElement>("#admin-notes-list");
+	if (!list) return;
+	list.replaceChildren();
+	if (!notes.length) {
+		const empty = document.createElement("p");
+		empty.className =
+			"rounded-lg bg-[var(--btn-regular-bg)] px-4 py-5 text-center text-black/50";
+		empty.textContent = "暂无笔记";
+		list.append(empty);
+		return;
+	}
+	for (const note of notes) {
+		const article = document.createElement("article");
+		article.className =
+			"flex flex-col gap-3 rounded-xl border border-[var(--line-color)] bg-white/45 px-4 py-3 sm:flex-row sm:items-center sm:justify-between";
+		article.dataset.noteKey = note.key;
+		const body = document.createElement("div");
+		body.className = "min-w-0";
+		const title = document.createElement("a");
+		title.href = note.path;
+		title.className =
+			"font-bold text-black/80 transition hover:text-[var(--primary)]";
+		title.textContent = note.title;
+		const meta = document.createElement("p");
+		meta.className = "mt-1 truncate text-xs text-black/45";
+		meta.textContent = [
+			note.type === "dynamic" ? "在线发布" : "仓库笔记",
+			note.category || "未分类",
+			...note.tags.map((tag) => `#${tag}`),
+		].join(" · ");
+		body.append(title, meta);
+		const remove = document.createElement("button");
+		remove.type = "button";
+		remove.dataset.deleteNote = "";
+		remove.className =
+			"shrink-0 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-bold text-red-700 transition hover:bg-red-100";
+		remove.textContent = "删除";
+		article.append(body, remove);
+		list.append(article);
+	}
+}
+
+async function loadAdminNotes(root: HTMLElement) {
+	const refresh = root.querySelector<HTMLButtonElement>("#admin-notes-refresh");
+	const message = root.querySelector<HTMLElement>("#admin-notes-message");
+	if (refresh) refresh.disabled = true;
+	setAdminMessage(message, "");
+	try {
+		const response = await fetch("/api/admin/notes", { cache: "no-store" });
+		const result = await response.json();
+		if (!response.ok) throw new Error(result.error || "笔记列表读取失败。");
+		renderAdminNotes(root, result.notes || []);
+	} catch (error) {
+		setAdminMessage(
+			message,
+			error instanceof Error ? error.message : "笔记列表读取失败。",
+			true,
+		);
+	} finally {
+		if (refresh) refresh.disabled = false;
+	}
+}
+
 function renderPendingComments(root: HTMLElement, comments: PendingComment[]) {
 	const list = root.querySelector<HTMLElement>("#admin-comments-list");
 	if (!list) return;
@@ -343,6 +419,49 @@ function bindAdminTools(root: HTMLElement) {
 	root
 		.querySelector<HTMLButtonElement>("#admin-comments-refresh")
 		?.addEventListener("click", () => void loadPendingComments(root));
+	root
+		.querySelector<HTMLButtonElement>("#admin-notes-refresh")
+		?.addEventListener("click", () => void loadAdminNotes(root));
+	const notesPanel = root.querySelector<HTMLElement>("#admin-notes-panel");
+	const notesMessage = root.querySelector<HTMLElement>("#admin-notes-message");
+	notesPanel?.addEventListener("click", async (event) => {
+		const button = (event.target as Element | null)?.closest<HTMLButtonElement>(
+			"button[data-delete-note]",
+		);
+		if (!button) return;
+		const article = button.closest<HTMLElement>("[data-note-key]");
+		const title =
+			article?.querySelector("a")?.textContent?.trim() || "这篇笔记";
+		if (!article?.dataset.noteKey) return;
+		if (!window.confirm(`确定删除“${title}”吗？删除后将不再公开显示。`)) {
+			return;
+		}
+		button.disabled = true;
+		setAdminMessage(notesMessage, "");
+		try {
+			const response = await fetch("/api/admin/notes", {
+				method: "DELETE",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ noteKey: article.dataset.noteKey }),
+			});
+			const result = await response.json();
+			if (!response.ok) throw new Error(result.error || "笔记删除失败。");
+			article.remove();
+			if (!notesPanel.querySelector("[data-note-key]")) {
+				renderAdminNotes(root, []);
+			}
+			invalidatePublishedNotes();
+			setAdminMessage(notesMessage, `已删除“${result.title || title}”。`);
+			void loadAdminActivity(root);
+		} catch (error) {
+			setAdminMessage(
+				notesMessage,
+				error instanceof Error ? error.message : "笔记删除失败。",
+				true,
+			);
+			button.disabled = false;
+		}
+	});
 	commentPanel?.addEventListener("click", async (event) => {
 		const button = (event.target as Element | null)?.closest<HTMLButtonElement>(
 			"button[data-moderation-action]",
@@ -419,6 +538,7 @@ function bindAdminTools(root: HTMLElement) {
 			if (!response.ok) throw new Error(result.error || "笔记发布失败。");
 			invalidatePublishedNotes();
 			form.reset();
+			void loadAdminNotes(root);
 			setAdminMessage(message, "笔记已发布。");
 			if (message) {
 				const link = document.createElement("a");
@@ -459,6 +579,7 @@ export function initAccountPage() {
 	const adminCommentsPanel = root.querySelector<HTMLElement>(
 		"#admin-comments-panel",
 	);
+	const adminNotesPanel = root.querySelector<HTMLElement>("#admin-notes-panel");
 
 	if (logout && !boundLogoutButtons.has(logout)) {
 		boundLogoutButtons.add(logout);
@@ -492,6 +613,7 @@ export function initAccountPage() {
 	adminPanel?.classList.add("hidden");
 	adminPublishPanel?.classList.add("hidden");
 	adminCommentsPanel?.classList.add("hidden");
+	adminNotesPanel?.classList.add("hidden");
 
 	void (async () => {
 		try {
@@ -516,9 +638,14 @@ export function initAccountPage() {
 				adminPanel.classList.remove("hidden");
 				adminPublishPanel?.classList.remove("hidden");
 				adminCommentsPanel?.classList.remove("hidden");
+				adminNotesPanel?.classList.remove("hidden");
 				bindAdminButtons(root);
 				bindAdminTools(root);
-				await Promise.all([loadAdminActivity(root), loadPendingComments(root)]);
+				await Promise.all([
+					loadAdminActivity(root),
+					loadAdminNotes(root),
+					loadPendingComments(root),
+				]);
 			}
 		} catch (error) {
 			if (loading) {

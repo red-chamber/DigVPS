@@ -1,5 +1,5 @@
 import {
-	getPublishedNotes,
+	getPublishedNoteData,
 	type PublishedNoteSummary,
 } from "./published-notes";
 
@@ -80,11 +80,22 @@ export function initNotesIndex() {
 	initializedIndexes.add(total);
 	void (async () => {
 		try {
-			const notes = await getPublishedNotes();
+			const { notes, deletedStaticNotes } = await getPublishedNoteData();
+			const deletedKeys = new Set(
+				deletedStaticNotes.map((note) => note.note_key),
+			);
+			for (const link of document.querySelectorAll<HTMLElement>(
+				"[data-static-note-key]",
+			)) {
+				if (deletedKeys.has(link.dataset.staticNoteKey || "")) link.remove();
+			}
 			const sections = new Map<string, HTMLElement>();
 			for (const section of document.querySelectorAll<HTMLElement>(
 				".note-category-section[data-note-category]",
 			)) {
+				section.dataset.staticCount = String(
+					section.querySelectorAll("[data-static-note-key]").length,
+				);
 				sections.set(categoryKey(section.dataset.noteCategory || ""), section);
 			}
 			const dynamicCounts = new Map<string, number>();
@@ -119,10 +130,13 @@ export function initNotesIndex() {
 					".note-category-nav-count",
 				);
 				if (navCount) navCount.textContent = String(count);
+				section.classList.toggle("hidden", count === 0);
+				nav?.classList.toggle("hidden", count === 0);
 			}
-			total.textContent = String(
-				Number(total.dataset.staticCount || 0) + notes.length,
-			);
+			const visibleStaticCount = document.querySelectorAll(
+				".note-category-list [data-static-note-key]",
+			).length;
+			total.textContent = String(visibleStaticCount + notes.length);
 		} catch (error) {
 			const message = document.querySelector<HTMLElement>(
 				"#dynamic-notes-error",
