@@ -36,12 +36,67 @@ import MainGridLayout from "../layouts/MainGridLayout.astro";
 		</div>
 	</section>
 
+	<section id="admin-publish-panel" class="card-base mt-6 hidden px-6 py-7 md:px-9 md:py-8">
+		<div class="mb-5">
+			<p class="text-sm font-medium text-[var(--primary)]">ADMIN</p>
+			<h2 class="font-serif text-2xl font-bold text-black/90">发布笔记</h2>
+			<p class="mt-1 text-sm text-black/50">正文使用 Markdown；发布后立即出现在“学习笔记”的在线发布区域</p>
+		</div>
+		<form id="admin-note-form" class="space-y-4">
+			<div class="grid gap-4 md:grid-cols-2">
+				<label class="block text-sm font-medium text-black/70">
+					标题 <span class="text-red-600">*</span>
+					<input id="admin-note-title" name="title" required maxlength="120" class="mt-1.5 w-full rounded-lg border border-[var(--line-color)] bg-white/60 px-3 py-2.5 outline-none focus:border-[var(--primary)]" />
+				</label>
+				<label class="block text-sm font-medium text-black/70">
+					Slug <span class="text-red-600">*</span>
+					<input id="admin-note-slug" name="slug" required maxlength="80" pattern="[a-z0-9](?:[a-z0-9-]{0,78}[a-z0-9])?" placeholder="example-note" class="mt-1.5 w-full rounded-lg border border-[var(--line-color)] bg-white/60 px-3 py-2.5 outline-none focus:border-[var(--primary)]" />
+				</label>
+			</div>
+			<label class="block text-sm font-medium text-black/70">
+				简短介绍 <span class="text-red-600">*</span>
+				<textarea id="admin-note-description" name="description" required maxlength="240" rows="2" class="mt-1.5 w-full rounded-lg border border-[var(--line-color)] bg-white/60 px-3 py-2.5 outline-none focus:border-[var(--primary)]" placeholder="用于笔记列表预览，不属于 Markdown 正文"></textarea>
+			</label>
+			<div class="grid gap-4 md:grid-cols-2">
+				<label class="block text-sm font-medium text-black/70">
+					分类 <span class="text-red-600">*</span>
+					<input id="admin-note-category" name="category" required maxlength="60" class="mt-1.5 w-full rounded-lg border border-[var(--line-color)] bg-white/60 px-3 py-2.5 outline-none focus:border-[var(--primary)]" />
+				</label>
+				<label class="block text-sm font-medium text-black/70">
+					标签
+					<input id="admin-note-tags" name="tags" placeholder="Markdown, Linux（逗号分隔）" class="mt-1.5 w-full rounded-lg border border-[var(--line-color)] bg-white/60 px-3 py-2.5 outline-none focus:border-[var(--primary)]" />
+				</label>
+			</div>
+			<label class="block text-sm font-medium text-black/70">
+				Markdown 正文 <span class="text-red-600">*</span>
+				<textarea id="admin-note-markdown" name="markdown" required rows="16" class="mt-1.5 w-full rounded-lg border border-[var(--line-color)] bg-white/60 px-3 py-3 font-mono text-sm outline-none focus:border-[var(--primary)]" placeholder="# 标题&#10;&#10;正文……"></textarea>
+			</label>
+			<p id="admin-note-message" class="hidden rounded-lg px-4 py-3 text-sm" role="status"></p>
+			<button id="admin-note-submit" type="submit" class="btn-regular w-full rounded-lg px-4 py-3 font-bold">立即发布</button>
+		</form>
+	</section>
+
+	<section id="admin-comments-panel" class="card-base mt-6 hidden px-6 py-7 md:px-9 md:py-8">
+		<div class="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+			<div>
+				<p class="text-sm font-medium text-[var(--primary)]">ADMIN</p>
+				<h2 class="font-serif text-2xl font-bold text-black/90">评论审核</h2>
+				<p class="mt-1 text-sm text-black/50">接纳后公开显示；驳回后不会出现在笔记下方</p>
+			</div>
+			<button id="admin-comments-refresh" type="button" class="btn-regular rounded-lg px-4 py-2 text-sm font-bold">刷新</button>
+		</div>
+		<p id="admin-comments-message" class="hidden rounded-lg px-4 py-3 text-sm" role="status"></p>
+		<div id="admin-comments-list" class="space-y-3">
+			<p class="rounded-lg bg-[var(--btn-regular-bg)] px-4 py-4 text-black/55">正在读取待审核评论……</p>
+		</div>
+	</section>
+
 	<section id="admin-activity-panel" class="card-base mt-6 hidden px-6 py-7 md:px-9 md:py-8">
 		<div class="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
 			<div>
 				<p class="text-sm font-medium text-[var(--primary)]">ADMIN</p>
 				<h2 class="font-serif text-2xl font-bold text-black/90">用户活动</h2>
-				<p class="mt-1 text-sm text-black/50">查看所有账户、有效会话和最近访问记录</p>
+				<p class="mt-1 text-sm text-black/50">查看账户、会话以及登录、评论、点赞和发布等重要事件</p>
 			</div>
 			<button id="admin-activity-refresh" type="button" class="btn-regular rounded-lg px-4 py-2 text-sm font-bold">刷新</button>
 		</div>
@@ -99,7 +154,7 @@ import MainGridLayout from "../layouts/MainGridLayout.astro";
 						<tbody id="admin-activities-body" class="divide-y divide-[var(--line-divider)] bg-white/40"></tbody>
 					</table>
 				</div>
-				<button id="admin-activity-more" type="button" class="btn-regular mt-3 hidden w-full rounded-lg px-4 py-3 text-sm font-bold">加载更早记录</button>
+				<button id="admin-activity-more" type="button" class="btn-regular mt-3 hidden w-full rounded-lg px-4 py-3 text-sm font-bold">加载更多</button>
 			</div>
 		</div>
 	</section>

@@ -1,0 +1,44 @@
+---
+interface Props {
+	noteKey: string;
+}
+
+const { noteKey } = Astro.props;
+---
+
+<section class="note-interactions card-base mb-4 px-6 py-6 md:px-9 md:py-7" data-note-key={noteKey}>
+	<div class="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--line-divider)] pb-4">
+		<div>
+			<h2 class="font-serif text-2xl font-bold text-black/85">互动</h2>
+			<p class="mt-1 text-sm text-black/50">仅登录用户可点赞与提交评论</p>
+		</div>
+		<button type="button" class="note-like-button btn-regular rounded-full px-4 py-2 font-bold" aria-pressed="false">
+			<span class="note-like-label">点赞</span>
+			<span class="note-like-count ml-1 text-black/45">0</span>
+		</button>
+	</div>
+
+	<p class="note-interaction-message mt-4 hidden rounded-lg px-4 py-3 text-sm" role="status"></p>
+
+	<form class="note-comment-form mt-5">
+		<label class="mb-2 block font-bold text-black/75" for={`note-comment-${noteKey.replaceAll(/[^a-z0-9]/giu, "-")}`}>发表评论</label>
+		<textarea
+			id={`note-comment-${noteKey.replaceAll(/[^a-z0-9]/giu, "-")}`}
+			class="note-comment-input min-h-28 w-full rounded-xl border border-[var(--line-color)] bg-white/60 px-4 py-3 text-black/75 outline-none transition focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20"
+			required
+			placeholder="评论通过管理员审核后公开显示"
+		></textarea>
+		<div class="mt-2 flex items-center justify-between gap-3 text-sm text-black/45">
+			<span>过去 24 小时最多提交 4 条</span>
+			<span><span class="note-comment-count">0</span>/500</span>
+		</div>
+		<button type="submit" class="note-comment-submit btn-regular mt-3 rounded-lg px-5 py-2.5 font-bold">提交审核</button>
+	</form>
+
+	<div class="mt-7">
+		<h3 class="font-bold text-black/75">已通过的评论</h3>
+		<div class="note-comments mt-3 space-y-3">
+			<p class="note-comments-loading text-sm text-black/45">正在加载评论……</p>
+		</div>
+	</div>
+</section>

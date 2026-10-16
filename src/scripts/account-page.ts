@@ -1,5 +1,6 @@
 const boundLogoutButtons = new WeakSet<HTMLButtonElement>();
 const boundAdminButtons = new WeakSet<HTMLButtonElement>();
+const boundAdminToolRoots = new WeakSet<HTMLElement>();
 const loadingAccountPages = new WeakSet<HTMLElement>();
 
 interface AdminUser {
@@ -47,7 +48,12 @@ const activityLabels: Record<string, string> = {
 	login_failed: "登录失败",
 	login_unverified: "未验证登录",
 	logout: "退出登录",
-	page_view: "访问页面",
+	comment_submitted: "提交评论",
+	comment_approved: "接纳评论",
+	comment_rejected: "驳回评论",
+	note_published: "发布笔记",
+	note_liked: "点赞笔记",
+	account_deleted: "注销账户",
 };
 
 function formatTimestamp(value?: number | null) {
@@ -241,6 +247,197 @@ function bindAdminButtons(root: HTMLElement) {
 	}
 }
 
+function setAdminMessage(
+	element: HTMLElement | null,
+	text: string,
+	error = false,
+) {
+	if (!element) return;
+	element.textContent = text;
+	element.classList.toggle("hidden", !text);
+	element.className = `${text ? "" : "hidden "}rounded-lg border px-4 py-3 text-sm ${
+		error
+			? "border-red-200 bg-red-50 text-red-700"
+			: "border-emerald-200 bg-emerald-50 text-emerald-700"
+	}`;
+}
+
+interface PendingComment {
+	id: string;
+	note_key: string;
+	note_title: string;
+	author_name: string;
+	email?: string | null;
+	content: string;
+	created_at: number;
+}
+
+function renderPendingComments(root: HTMLElement, comments: PendingComment[]) {
+	const list = root.querySelector<HTMLElement>("#admin-comments-list");
+	if (!list) return;
+	list.replaceChildren();
+	if (!comments.length) {
+		const empty = document.createElement("p");
+		empty.className =
+			"rounded-lg bg-[var(--btn-regular-bg)] px-4 py-5 text-center text-black/50";
+		empty.textContent = "暂无待审核评论";
+		list.append(empty);
+		return;
+	}
+	for (const comment of comments) {
+		const article = document.createElement("article");
+		article.className =
+			"rounded-xl border border-[var(--line-color)] bg-white/45 px-4 py-4";
+		article.dataset.commentId = comment.id;
+		const meta = document.createElement("p");
+		meta.className = "text-sm text-black/50";
+		meta.textContent = `${comment.note_title} · ${comment.author_name}${comment.email ? ` (${comment.email})` : ""} · ${formatTimestamp(comment.created_at)}`;
+		const content = document.createElement("p");
+		content.className = "mt-3 whitespace-pre-wrap break-words text-black/75";
+		content.textContent = comment.content;
+		const actions = document.createElement("div");
+		actions.className = "mt-4 flex gap-2";
+		for (const [action, label] of [
+			["approve", "接纳"],
+			["reject", "驳回"],
+		] as const) {
+			const button = document.createElement("button");
+			button.type = "button";
+			button.dataset.moderationAction = action;
+			button.className =
+				action === "approve"
+					? "btn-regular rounded-lg px-4 py-2 text-sm font-bold"
+					: "rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-bold text-red-700 transition hover:bg-red-100";
+			button.textContent = label;
+			actions.append(button);
+		}
+		article.append(meta, content, actions);
+		list.append(article);
+	}
+}
+
+async function loadPendingComments(root: HTMLElement) {
+	const refresh = root.querySelector<HTMLButtonElement>(
+		"#admin-comments-refresh",
+	);
+	const message = root.querySelector<HTMLElement>("#admin-comments-message");
+	if (refresh) refresh.disabled = true;
+	setAdminMessage(message, "");
+	try {
+		const response = await fetch("/api/admin/comments", { cache: "no-store" });
+		const result = await response.json();
+		if (!response.ok) throw new Error(result.error || "待审核评论读取失败。");
+		renderPendingComments(root, result.comments || []);
+	} catch (error) {
+		setAdminMessage(
+			message,
+			error instanceof Error ? error.message : "待审核评论读取失败。",
+			true,
+		);
+	} finally {
+		if (refresh) refresh.disabled = false;
+	}
+}
+
+function bindAdminTools(root: HTMLElement) {
+	if (boundAdminToolRoots.has(root)) return;
+	boundAdminToolRoots.add(root);
+	const commentPanel = root.querySelector<HTMLElement>("#admin-comments-panel");
+	const commentMessage = root.querySelector<HTMLElement>(
+		"#admin-comments-message",
+	);
+	root
+		.querySelector<HTMLButtonElement>("#admin-comments-refresh")
+		?.addEventListener("click", () => void loadPendingComments(root));
+	commentPanel?.addEventListener("click", async (event) => {
+		const button = (event.target as Element | null)?.closest<HTMLButtonElement>(
+			"button[data-moderation-action]",
+		);
+		if (!button) return;
+		const article = button.closest<HTMLElement>("[data-comment-id]");
+		if (!article?.dataset.commentId) return;
+		for (const actionButton of article.querySelectorAll<HTMLButtonElement>(
+			"button",
+		)) {
+			actionButton.disabled = true;
+		}
+		try {
+			const response = await fetch("/api/admin/comments", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					id: article.dataset.commentId,
+					action: button.dataset.moderationAction,
+				}),
+			});
+			const result = await response.json();
+			if (!response.ok) throw new Error(result.error || "评论审核失败。");
+			article.remove();
+			if (!commentPanel.querySelector("[data-comment-id]")) {
+				renderPendingComments(root, []);
+			}
+			setAdminMessage(
+				commentMessage,
+				result.status === "approved" ? "评论已接纳。" : "评论已驳回。",
+			);
+			void loadAdminActivity(root);
+		} catch (error) {
+			setAdminMessage(
+				commentMessage,
+				error instanceof Error ? error.message : "评论审核失败。",
+				true,
+			);
+			for (const actionButton of article.querySelectorAll<HTMLButtonElement>(
+				"button",
+			)) {
+				actionButton.disabled = false;
+			}
+		}
+	});
+
+	const form = root.querySelector<HTMLFormElement>("#admin-note-form");
+	form?.addEventListener("submit", async (event) => {
+		event.preventDefault();
+		const submit = root.querySelector<HTMLButtonElement>("#admin-note-submit");
+		const message = root.querySelector<HTMLElement>("#admin-note-message");
+		const value = (selector: string) =>
+			root.querySelector<HTMLInputElement | HTMLTextAreaElement>(selector)
+				?.value || "";
+		if (submit) submit.disabled = true;
+		setAdminMessage(message, "");
+		try {
+			const response = await fetch("/api/admin/notes", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					title: value("#admin-note-title"),
+					slug: value("#admin-note-slug"),
+					description: value("#admin-note-description"),
+					category: value("#admin-note-category"),
+					tags: value("#admin-note-tags")
+						.split(/[，,]/u)
+						.map((tag) => tag.trim())
+						.filter(Boolean),
+					markdown: value("#admin-note-markdown"),
+				}),
+			});
+			const result = await response.json();
+			if (!response.ok) throw new Error(result.error || "笔记发布失败。");
+			form.reset();
+			setAdminMessage(message, `笔记已发布：${result.path}`);
+			void loadAdminActivity(root);
+		} catch (error) {
+			setAdminMessage(
+				message,
+				error instanceof Error ? error.message : "笔记发布失败。",
+				true,
+			);
+		} finally {
+			if (submit) submit.disabled = false;
+		}
+	});
+}
+
 export function initAccountPage() {
 	const page = document.querySelector<HTMLElement>("#account-page");
 	if (!page) return;
@@ -254,6 +451,12 @@ export function initAccountPage() {
 	const message = root.querySelector<HTMLElement>("#account-message");
 	const logout = root.querySelector<HTMLButtonElement>("#logout-button");
 	const adminPanel = root.querySelector<HTMLElement>("#admin-activity-panel");
+	const adminPublishPanel = root.querySelector<HTMLElement>(
+		"#admin-publish-panel",
+	);
+	const adminCommentsPanel = root.querySelector<HTMLElement>(
+		"#admin-comments-panel",
+	);
 
 	if (logout && !boundLogoutButtons.has(logout)) {
 		boundLogoutButtons.add(logout);
@@ -285,6 +488,8 @@ export function initAccountPage() {
 	}
 	details?.classList.add("hidden");
 	adminPanel?.classList.add("hidden");
+	adminPublishPanel?.classList.add("hidden");
+	adminCommentsPanel?.classList.add("hidden");
 
 	void (async () => {
 		try {
@@ -307,8 +512,11 @@ export function initAccountPage() {
 
 			if (result.user.role === "admin" && adminPanel) {
 				adminPanel.classList.remove("hidden");
+				adminPublishPanel?.classList.remove("hidden");
+				adminCommentsPanel?.classList.remove("hidden");
 				bindAdminButtons(root);
-				await loadAdminActivity(root);
+				bindAdminTools(root);
+				await Promise.all([loadAdminActivity(root), loadPendingComments(root)]);
 			}
 		} catch (error) {
 			if (loading) {

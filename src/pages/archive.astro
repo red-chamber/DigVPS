@@ -10,6 +10,7 @@ const sortedPostsList = await getSortedPostsList();
 const archivedEntries = archivedNoteHistory.map((entry) => ({
 	...entry,
 	date: new Date(entry.date),
+	action: entry.action as "published" | "updated",
 }));
 ---
 

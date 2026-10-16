@@ -2,6 +2,18 @@ import { json } from "../../../server/auth.js";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
+const IMPORTANT_EVENTS_SQL = `
+	'registration_requested',
+	'email_verified',
+	'login_success',
+	'logout',
+	'comment_submitted',
+	'comment_approved',
+	'comment_rejected',
+	'note_published',
+	'note_liked',
+	'account_deleted'
+`;
 
 function positiveInteger(value, fallback) {
 	const parsed = Number.parseInt(String(value || ""), 10);
@@ -31,8 +43,9 @@ export async function onRequestGet(context) {
 				        u.locked_until,
 				        (SELECT COUNT(*) FROM sessions AS s
 				         WHERE s.user_id = u.id AND s.expires_at > ?1) AS active_sessions,
-				        (SELECT MAX(a.created_at) FROM user_activities AS a
-				         WHERE a.user_id = u.id) AS last_activity_at
+			        (SELECT MAX(a.created_at) FROM user_activities AS a
+			         WHERE a.user_id = u.id
+			           AND a.event_type IN (${IMPORTANT_EVENTS_SQL})) AS last_activity_at
 				 FROM users AS u
 				 ORDER BY u.created_at DESC, u.id DESC`,
 			).bind(now),
@@ -41,19 +54,24 @@ export async function onRequestGet(context) {
 				        a.created_at, a.user_id, u.email, u.username, u.role
 				 FROM user_activities AS a
 				 LEFT JOIN users AS u ON u.id = a.user_id
-				 WHERE (?1 IS NULL OR a.id < ?1)
+				 WHERE a.event_type IN (${IMPORTANT_EVENTS_SQL})
+				   AND (?1 IS NULL OR a.id < ?1)
 				 ORDER BY a.id DESC
 				 LIMIT ?2`,
-			).bind(cursor, limit),
+			).bind(cursor, limit + 1),
 		]);
 
 		const users = usersResult.results || [];
-		const activities = (activitiesResult.results || []).map((activity) => ({
+		const activityRows = activitiesResult.results || [];
+		const hasMore = activityRows.length > limit;
+		const activities = activityRows.slice(0, limit).map((activity) => ({
 			...activity,
 			ip_hash: activity.ip_hash ? String(activity.ip_hash).slice(0, 12) : null,
 		}));
 		const nextCursor =
-			activities.length === limit ? activities[activities.length - 1].id : null;
+			hasMore && activities.length
+				? activities[activities.length - 1].id
+				: null;
 
 		return json({
 			users,

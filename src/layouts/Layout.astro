@@ -190,6 +190,8 @@ import {
 import {getHue, setHue, setTheme} from "../utils/setting-utils";
 import {pathsEqual, url} from "../utils/url-utils";
 import {initAccountPage} from "../scripts/account-page";
+import {initNoteInteractions} from "../scripts/note-interactions";
+import {initNotesIndex} from "../scripts/notes-index";
 import {
 	BANNER_HEIGHT,
 	BANNER_HEIGHT_HOME,
@@ -356,6 +358,8 @@ function init() {
 	initCustomScrollbar();
 	showBanner();
 	initAccountPage();
+	initNoteInteractions();
+	initNotesIndex();
 }
 
 /* Load settings when entering the site */

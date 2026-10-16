@@ -1,0 +1,63 @@
+---
+import NoteInteractions from "@components/NoteInteractions.astro";
+import MainGridLayout from "@layouts/MainGridLayout.astro";
+---
+
+<MainGridLayout title="阅读笔记" description="管理员发布的 Markdown 笔记">
+	<div id="dynamic-note-loading" class="card-base mb-4 px-6 py-7 text-black/55 md:px-9">正在读取笔记……</div>
+	<article id="dynamic-note" class="card-base mb-4 hidden px-6 py-7 md:px-9 md:py-8">
+		<p id="dynamic-note-category" class="text-sm font-medium text-[var(--primary)]"></p>
+		<h1 id="dynamic-note-title" class="mt-1 font-serif text-3xl font-bold text-black/90"></h1>
+		<p id="dynamic-note-description" class="mt-3 text-black/55"></p>
+		<div id="dynamic-note-meta" class="mt-3 text-sm text-black/40"></div>
+		<div class="my-5 border-b border-dashed border-[var(--line-divider)]"></div>
+		<div id="dynamic-note-content" class="prose custom-md markdown-content !max-w-none"></div>
+	</article>
+	<div id="dynamic-note-interactions" class="hidden">
+		<NoteInteractions noteKey="" />
+	</div>
+</MainGridLayout>
+
+<script>
+	import { initNoteInteractions } from "../../scripts/note-interactions";
+
+	async function initDynamicNote() {
+		const loading = document.querySelector<HTMLElement>("#dynamic-note-loading");
+		const article = document.querySelector<HTMLElement>("#dynamic-note");
+		const wrapper = document.querySelector<HTMLElement>("#dynamic-note-interactions");
+		if (!loading || !article || !wrapper || article.dataset.loaded === "true") return;
+		const slug = new URLSearchParams(window.location.search).get("slug") || "";
+		try {
+			const response = await fetch(`/api/published-note?slug=${encodeURIComponent(slug)}`, { cache: "no-store" });
+			const result = await response.json();
+			if (!response.ok) throw new Error(result.error || "笔记读取失败。");
+			const note = result.note;
+			const title = article.querySelector<HTMLElement>("#dynamic-note-title");
+			const description = article.querySelector<HTMLElement>("#dynamic-note-description");
+			const category = article.querySelector<HTMLElement>("#dynamic-note-category");
+			const meta = article.querySelector<HTMLElement>("#dynamic-note-meta");
+			const content = article.querySelector<HTMLElement>("#dynamic-note-content");
+			if (title) title.textContent = note.title;
+			if (description) description.textContent = note.description;
+			if (category) category.textContent = note.category;
+			if (meta) meta.textContent = `${new Date(note.published_at * 1000).toLocaleString("zh-CN")} · ${(note.tags || []).join(" · ")}`;
+			if (content) content.innerHTML = note.rendered_html;
+			document.title = `${note.title} - RC Domain`;
+			const interactions = wrapper.querySelector<HTMLElement>(".note-interactions");
+			if (interactions) {
+				interactions.dataset.noteKey = `dynamic:${note.slug}`;
+			}
+			article.dataset.loaded = "true";
+			loading.classList.add("hidden");
+			article.classList.remove("hidden");
+			wrapper.classList.remove("hidden");
+			initNoteInteractions(wrapper);
+		} catch (error) {
+			loading.textContent = error instanceof Error ? error.message : "笔记读取失败。";
+			loading.className = "card-base mb-4 px-6 py-7 text-red-700 md:px-9";
+		}
+	}
+
+	initDynamicNote();
+	document.addEventListener("astro:page-load", initDynamicNote);
+</script>

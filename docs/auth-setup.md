@@ -12,7 +12,8 @@
 - 连续 5 次登录失败后锁定账户 15 分钟。
 - 会话有效期固定为 3 天，浏览器 Cookie 使用 `HttpOnly`、`Secure`、`SameSite=Lax`。
 - 验证码、会话令牌和注册 IP 均只保存不可逆哈希。
-- 管理员可以在账户页查看全部用户、有效会话以及注册、验证、登录、退出和页面访问活动；访问 IP 只保存不可逆哈希。
+- 已登录用户可以点赞已发布笔记，并在滚动 24 小时内提交最多 4 条、每条不超过 500 字的待审核评论。
+- 管理员可以在账户页审核评论、直接发布 Markdown 笔记，并查看全部用户、有效会话和重要活动；访问 IP 只保存不可逆哈希，不记录页面访问。
 
 ## 1. 配置 Brevo 发件人
 
@@ -29,9 +30,10 @@
 npx wrangler d1 execute digvps-auth --remote --file=migrations/0001_auth.sql
 npx wrangler d1 execute digvps-auth --remote --file=migrations/0002_cloudflare_pbkdf2_limit.sql
 npx wrangler d1 execute digvps-auth --remote --file=migrations/0003_user_activity.sql
+npx wrangler d1 execute digvps-auth --remote --file=migrations/0004_notes_comments_likes.sql
 ```
 
-迁移会创建三张表，并创建初始管理员：
+迁移会创建认证、活动、在线笔记、评论和点赞所需的数据表，并创建初始管理员：
 
 - 用户名：`root`
 - 邮箱：`autoverification@163.com`
@@ -70,3 +72,5 @@ $bytes = [byte[]]::new(32)
 4. `/account/` 显示账户和三天后的会话过期时间。
 5. 退出后原会话令牌立即失效。
 6. 使用管理员账户进入 `/account/`，可以看到用户总览和活动时间线；普通用户不会看到该区域，访问 `/api/admin/activity` 会返回 403。
+7. 在任意学习笔记底部测试点赞与评论；评论在管理员接纳前不会公开显示。
+8. 管理员在 `/account/` 发布一篇测试 Markdown 笔记，并确认它出现在 `/notes/` 的“在线发布”区域。

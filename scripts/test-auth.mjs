@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { onRequest as authMiddleware } from "../functions/_middleware.js";
 import { onRequestGet as adminActivity } from "../functions/api/admin/activity.js";
+import { onRequestPost as moderateComment } from "../functions/api/admin/comments.js";
+import { onRequestPost as publishNote } from "../functions/api/admin/notes.js";
+import { onRequestPost as submitComment } from "../functions/api/note-comments.js";
 import {
 	createSessionRecord,
 	derivePasswordHash,
@@ -11,6 +14,11 @@ import {
 	sessionCookie,
 	verifyPassword,
 } from "../server/auth.js";
+import {
+	renderMarkdown,
+	resolvePublishedNote,
+	unicodeLength,
+} from "../server/notes.js";
 
 const testPassword = "unit-test-password";
 const testCredential = await hashPassword(testPassword);
@@ -27,6 +35,14 @@ assert.equal(
 	testCredential.hash,
 );
 assert.match(randomVerificationCode(), /^\d{6}$/u);
+assert.equal(unicodeLength("a😀中"), 3);
+assert.match(renderMarkdown("# Hello"), /<h1>Hello<\/h1>/u);
+assert.match(renderMarkdown("<script>alert(1)</script>"), /&lt;script&gt;/u);
+assert.equal(
+	(await resolvePublishedNote({}, "static:notes/linux/全局"))?.type,
+	"static",
+);
+assert.equal(await resolvePublishedNote({}, "static:notes/not-real"), null);
 
 const session = await createSessionRecord("user-1", 1_000);
 assert.equal(session.expiresAt, 1_000 + SESSION_TTL_SECONDS);
@@ -131,6 +147,37 @@ const validSession = await runMiddleware({
 assert.equal(validSession.status, 200);
 assert.equal(validSession.headers.get("Cache-Control"), "private, no-store");
 
+let authenticatedDbCalls = 0;
+const noPageViewDb = {
+	prepare() {
+		authenticatedDbCalls += 1;
+		return {
+			bind() {
+				return {
+					first: async () => ({
+						token_hash: "hash",
+						expires_at: 2_000_000_000,
+						id: "user-1",
+						email: "reader@example.com",
+						username: null,
+						role: "user",
+					}),
+				};
+			},
+		};
+	},
+};
+await runMiddleware({
+	url: "https://digvps.pages.dev/notes/",
+	headers: { Cookie: "digvps_session=test-token" },
+	env: { ...configuredEnv, DB: noPageViewDb },
+});
+assert.equal(
+	authenticatedDbCalls,
+	1,
+	"HTML GET must not create page_view activity",
+);
+
 const retiredWallpaper = await runMiddleware({
 	url: "https://digvps.pages.dev/background/valley.jpg",
 	env: configuredEnv,
@@ -144,12 +191,14 @@ const regularUserActivity = await adminActivity({
 });
 assert.equal(regularUserActivity.status, 403);
 
+const adminSql = [];
 const adminActivityResponse = await adminActivity({
 	request: new Request("https://digvps.pages.dev/api/admin/activity?limit=25"),
 	data: { user: { id: "admin-1", role: "admin" } },
 	env: {
 		DB: {
-			prepare() {
+			prepare(sql) {
+				adminSql.push(sql);
 				return {
 					bind() {
 						return this;
@@ -179,5 +228,69 @@ assert.equal(adminActivityResponse.status, 200);
 const adminActivityBody = await adminActivityResponse.json();
 assert.equal(adminActivityBody.summary.totalUsers, 1);
 assert.equal(adminActivityBody.summary.activeSessions, 1);
+assert.match(adminSql[1], /event_type IN/u);
+assert.doesNotMatch(adminSql[1], /page_view/u);
 
-console.log("Authentication unit tests passed.");
+const regularPublish = await publishNote({
+	request: new Request("https://digvps.pages.dev/api/admin/notes", {
+		method: "POST",
+	}),
+	data: { user: { id: "user-1", role: "user" } },
+});
+assert.equal(regularPublish.status, 403);
+
+const regularModeration = await moderateComment({
+	request: new Request("https://digvps.pages.dev/api/admin/comments", {
+		method: "POST",
+	}),
+	data: { user: { id: "user-1", role: "user" } },
+});
+assert.equal(regularModeration.status, 403);
+
+const oversizedComment = await submitComment({
+	request: new Request("https://digvps.pages.dev/api/note-comments", {
+		method: "POST",
+		headers: {
+			Origin: "https://digvps.pages.dev",
+			"Content-Type": "application/json",
+		},
+		body: JSON.stringify({
+			note: "static:notes/linux/全局",
+			noteTitle: "Linux",
+			content: "字".repeat(501),
+		}),
+	}),
+	data: { user: { id: "user-1", email: "reader@example.com", role: "user" } },
+	env: { DB: {} },
+});
+assert.equal(oversizedComment.status, 400);
+
+const rateLimitedComment = await submitComment({
+	request: new Request("https://digvps.pages.dev/api/note-comments", {
+		method: "POST",
+		headers: {
+			Origin: "https://digvps.pages.dev",
+			"Content-Type": "application/json",
+		},
+		body: JSON.stringify({
+			note: "static:notes/linux/全局",
+			noteTitle: "Linux",
+			content: "第五条评论",
+		}),
+	}),
+	data: { user: { id: "user-1", email: "reader@example.com", role: "user" } },
+	env: {
+		DB: {
+			prepare() {
+				return {
+					bind() {
+						return { run: async () => ({ meta: { changes: 0 } }) };
+					},
+				};
+			},
+		},
+	},
+});
+assert.equal(rateLimitedComment.status, 429);
+
+console.log("Authentication, notes, and activity unit tests passed.");

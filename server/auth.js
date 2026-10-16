@@ -53,16 +53,20 @@ export function requestHasSameOrigin(request) {
 	return Boolean(origin && origin === new URL(request.url).origin);
 }
 
-export async function readJson(request) {
+export async function readJson(request, maxBytes = MAX_JSON_BYTES) {
 	const contentType = request.headers.get("Content-Type") || "";
 	if (!contentType.toLowerCase().includes("application/json")) {
 		throw new TypeError("请求必须使用 JSON 格式。");
 	}
 	const contentLength = Number(request.headers.get("Content-Length") || 0);
-	if (contentLength > MAX_JSON_BYTES) {
+	if (contentLength > maxBytes) {
 		throw new RangeError("请求内容过大。");
 	}
-	return request.json();
+	const raw = await request.text();
+	if (textEncoder.encode(raw).byteLength > maxBytes) {
+		throw new RangeError("请求内容过大。");
+	}
+	return JSON.parse(raw);
 }
 
 export function normalizeEmail(value) {
