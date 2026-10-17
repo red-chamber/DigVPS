@@ -106,9 +106,9 @@ function entryHref(entry: TimelineEntry) {
 }
 
 function actionLabel(action: TimelineEntry["action"]) {
-	if (action === "updated") return "修改";
-	if (action === "activity") return "活动";
-	return "提交";
+	if (action === "updated") return "Updated";
+	if (action === "activity") return "Activity";
+	return "Published";
 }
 
 onMount(async () => {
@@ -169,7 +169,7 @@ onMount(async () => {
 			}),
 		);
 	} catch (error) {
-		console.error("在线笔记时间线读取失败。", error);
+		console.error("Failed to load the published-note timeline.", error);
 	}
 	try {
 		const timelineData = await getTimelineData();
@@ -179,7 +179,7 @@ onMount(async () => {
 			date: new Date(event.date * 1000),
 		}));
 	} catch (error) {
-		console.error("公开活动时间线读取失败。", error);
+		console.error("Failed to load the public timeline.", error);
 	}
 	const staticEntries = sortedPosts.flatMap(entriesForPost).map((entry) => ({
 		...entry,
@@ -249,7 +249,7 @@ onMount(async () => {
                     ></div>
                 </div>
                 <div class="w-[70%] md:w-[80%] transition text-left text-50">
-                    {group.entries.length} 条记录
+                    {group.entries.length} {group.entries.length === 1 ? "record" : "records"}
                 </div>
             </div>
 
@@ -288,7 +288,7 @@ onMount(async () => {
                         >
                             {entry.title}
                             <span class="ml-2 text-xs font-normal text-30">
-                                {actionLabel(entry.action)}{entry.available ? "" : "（已删除）"}
+                                {actionLabel(entry.action)}{entry.available ? "" : " (Deleted)"}
                             </span>
                         </div>
 

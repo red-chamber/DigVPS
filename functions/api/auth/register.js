@@ -22,22 +22,22 @@ import { sendVerificationEmail } from "../../../server/email.js";
 export async function onRequestPost(context) {
 	const { request, env } = context;
 	if (!authIsConfigured(env)) {
-		return json({ error: "注册服务尚未配置完成。" }, 503);
+		return json({ error: "Registration has not been fully configured." }, 503);
 	}
 	if (!requestHasSameOrigin(request)) {
-		return json({ error: "请求来源无效。" }, 403);
+		return json({ error: "Invalid request origin." }, 403);
 	}
 
 	let body;
 	try {
 		body = await readJson(request);
 	} catch (error) {
-		return json({ error: error.message || "请求格式无效。" }, 400);
+		return json({ error: error.message || "Invalid request format." }, 400);
 	}
 
 	const email = normalizeEmail(body.email);
 	const password = body.password;
-	if (!validateEmail(email)) return json({ error: "邮箱格式无效。" }, 400);
+	if (!validateEmail(email)) return json({ error: "Invalid email address." }, 400);
 	const passwordError = validatePassword(password);
 	if (passwordError) return json({ error: passwordError }, 400);
 
@@ -70,7 +70,7 @@ export async function onRequestPost(context) {
 			]);
 
 		if (existingUser?.email_verified) {
-			return json({ error: "该邮箱已经注册，请直接登录。" }, 409);
+			return json({ error: "This email is already registered. Sign in instead." }, 409);
 		}
 		if (
 			existingVerification &&
@@ -78,7 +78,7 @@ export async function onRequestPost(context) {
 		) {
 			return json(
 				{
-					error: "验证码发送过于频繁，请稍后再试。",
+					error: "Verification codes are being requested too frequently. Please try again later.",
 					retryAfter:
 						VERIFICATION_RESEND_SECONDS - (now - existingVerification.sent_at),
 				},
@@ -86,7 +86,7 @@ export async function onRequestPost(context) {
 			);
 		}
 		if (Number(recentIpRequests?.count || 0) >= registrationIpLimit()) {
-			return json({ error: "当前网络的注册请求过多，请一小时后再试。" }, 429);
+			return json({ error: "Too many registration requests from this network. Please try again in one hour." }, 429);
 		}
 
 		const userId = existingUser?.id || randomToken(18);
@@ -148,7 +148,7 @@ export async function onRequestPost(context) {
 				);
 			}
 			await env.DB.batch(cleanup);
-			return json({ error: "验证码邮件发送失败，请稍后重试。" }, 502);
+			return json({ error: "Failed to send the verification email. Please try again later." }, 502);
 		}
 
 		context.waitUntil?.(pruneExpiredAuthRecords(env.DB, now));
@@ -164,6 +164,6 @@ export async function onRequestPost(context) {
 		});
 	} catch (error) {
 		console.error("Registration failed:", error.message);
-		return json({ error: "注册服务暂时不可用，请稍后重试。" }, 500);
+		return json({ error: "The registration service is temporarily unavailable. Please try again later." }, 500);
 	}
 }

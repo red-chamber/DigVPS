@@ -16,31 +16,31 @@ import {
 
 export async function onRequestPost(context) {
 	if (!requestHasSameOrigin(context.request)) {
-		return json({ error: "请求来源无效。" }, 403);
+		return json({ error: "Invalid request origin." }, 403);
 	}
 	let body;
 	try {
 		body = await readJson(context.request);
 	} catch (error) {
-		return json({ error: error.message || "请求格式无效。" }, 400);
+		return json({ error: error.message || "Invalid request format." }, 400);
 	}
 	const noteKey = String(body.note || "");
 	const content = String(body.content || "").trim();
 	const length = unicodeLength(content);
 	if (length < 1 || length > COMMENT_MAX_CHARACTERS) {
 		return json(
-			{ error: `评论须为 1–${COMMENT_MAX_CHARACTERS} 个字符。` },
+			{ error: `Comments must contain between 1 and ${COMMENT_MAX_CHARACTERS} characters.` },
 			400,
 		);
 	}
 	const now = Math.floor(Date.now() / 1000);
 	try {
 		const resolved = await resolvePublishedNote(context.env.DB, noteKey);
-		if (!resolved) return json({ error: "只能评论已发布的笔记。" }, 404);
+		if (!resolved) return json({ error: "Only published notes can receive comments." }, 404);
 		const noteTitle =
 			resolved.type === "dynamic" ? resolved.note.title : resolved.title;
 		const authorName =
-			context.data.user.username || context.data.user.email || "已注销用户";
+			context.data.user.username || context.data.user.email || "Deleted User";
 		const result = await context.env.DB.prepare(
 			`INSERT INTO note_comments
 			 (id, note_key, note_title, user_id, author_name, content, status, created_at)
@@ -61,7 +61,7 @@ export async function onRequestPost(context) {
 			)
 			.run();
 		if (!Number(result.meta?.changes || 0)) {
-			return json({ error: "过去 24 小时已提交 4 条评论，请稍后再试。" }, 429);
+			return json({ error: "You have already submitted 4 comments in the past 24 hours. Please try again later." }, 429);
 		}
 		await recordActivity(context, {
 			userId: context.data.user.id,
@@ -69,11 +69,11 @@ export async function onRequestPost(context) {
 			path: publicNotePath(resolved),
 		});
 		return json(
-			{ ok: true, message: "评论已提交，管理员审核通过后会显示。" },
+			{ ok: true, message: "Your comment has been submitted and will appear after administrator approval." },
 			201,
 		);
 	} catch (error) {
 		console.error("Comment submission failed:", error.message);
-		return json({ error: "评论提交失败，请稍后重试。" }, 500);
+		return json({ error: "Failed to submit the comment. Please try again later." }, 500);
 	}
 }

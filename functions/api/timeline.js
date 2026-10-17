@@ -20,6 +20,6 @@ export async function onRequestGet(context) {
 		});
 	} catch (error) {
 		console.error("Timeline lookup failed:", error.message);
-		return json({ error: "公开时间线读取失败，请确认数据库迁移已执行。" }, 500);
+		return json({ error: "Failed to load the public timeline. Confirm that the database migration has been applied." }, 500);
 	}
 }

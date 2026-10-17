@@ -25,7 +25,7 @@ function renderComments(root: HTMLElement, comments: NoteComment[]) {
 	if (comments.length === 0) {
 		const empty = document.createElement("p");
 		empty.className = "text-sm text-black/45";
-		empty.textContent = "还没有已通过的评论。";
+		empty.textContent = "No approved comments yet.";
 		container.append(empty);
 		return;
 	}
@@ -41,7 +41,7 @@ function renderComments(root: HTMLElement, comments: NoteComment[]) {
 		const time = document.createElement("time");
 		time.className = "text-xs text-black/40";
 		time.textContent = new Date(comment.created_at * 1000).toLocaleString(
-			"zh-CN",
+			"en-US",
 		);
 		const content = document.createElement("p");
 		content.className = "mt-2 whitespace-pre-wrap break-words text-black/70";
@@ -61,19 +61,19 @@ async function loadInteractions(root: HTMLElement) {
 			{ cache: "no-store" },
 		);
 		const result = await response.json();
-		if (!response.ok) throw new Error(result.error || "互动信息读取失败。");
+		if (!response.ok) throw new Error(result.error || "Failed to load interactions.");
 		const button = root.querySelector<HTMLButtonElement>(".note-like-button");
 		const label = root.querySelector<HTMLElement>(".note-like-label");
 		const count = root.querySelector<HTMLElement>(".note-like-count");
 		if (button) button.setAttribute("aria-pressed", String(result.liked));
-		if (label) label.textContent = result.liked ? "已点赞" : "点赞";
+		if (label) label.textContent = result.liked ? "Liked" : "Like";
 		if (count) count.textContent = String(result.likeCount || 0);
 		renderComments(root, result.comments || []);
 	} catch (error) {
 		renderComments(root, []);
 		setMessage(
 			root,
-			error instanceof Error ? error.message : "互动信息读取失败。",
+			error instanceof Error ? error.message : "Failed to load interactions.",
 			true,
 		);
 	}
@@ -103,16 +103,16 @@ function bindInteraction(root: HTMLElement) {
 				body: JSON.stringify({ note: root.dataset.noteKey }),
 			});
 			const result = await response.json();
-			if (!response.ok) throw new Error(result.error || "点赞失败。");
+			if (!response.ok) throw new Error(result.error || "Failed to update the like.");
 			like.setAttribute("aria-pressed", String(result.liked));
 			const label = root.querySelector<HTMLElement>(".note-like-label");
 			const count = root.querySelector<HTMLElement>(".note-like-count");
-			if (label) label.textContent = result.liked ? "已点赞" : "点赞";
+			if (label) label.textContent = result.liked ? "Liked" : "Like";
 			if (count) count.textContent = String(result.likeCount || 0);
 		} catch (error) {
 			setMessage(
 				root,
-				error instanceof Error ? error.message : "点赞失败。",
+				error instanceof Error ? error.message : "Failed to update the like.",
 				true,
 			);
 		} finally {
@@ -137,14 +137,14 @@ function bindInteraction(root: HTMLElement) {
 				}),
 			});
 			const result = await response.json();
-			if (!response.ok) throw new Error(result.error || "评论提交失败。");
+			if (!response.ok) throw new Error(result.error || "Failed to submit the comment.");
 			input.value = "";
 			if (characterCount) characterCount.textContent = "0";
-			setMessage(root, result.message || "评论已提交审核。");
+			setMessage(root, result.message || "Your comment has been submitted for review.");
 		} catch (error) {
 			setMessage(
 				root,
-				error instanceof Error ? error.message : "评论提交失败。",
+				error instanceof Error ? error.message : "Failed to submit the comment.",
 				true,
 			);
 		} finally {

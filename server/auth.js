@@ -56,15 +56,15 @@ export function requestHasSameOrigin(request) {
 export async function readJson(request, maxBytes = MAX_JSON_BYTES) {
 	const contentType = request.headers.get("Content-Type") || "";
 	if (!contentType.toLowerCase().includes("application/json")) {
-		throw new TypeError("请求必须使用 JSON 格式。");
+		throw new TypeError("The request must use JSON format.");
 	}
 	const contentLength = Number(request.headers.get("Content-Length") || 0);
 	if (contentLength > maxBytes) {
-		throw new RangeError("请求内容过大。");
+		throw new RangeError("The request body is too large.");
 	}
 	const raw = await request.text();
 	if (textEncoder.encode(raw).byteLength > maxBytes) {
-		throw new RangeError("请求内容过大。");
+		throw new RangeError("The request body is too large.");
 	}
 	return JSON.parse(raw);
 }
@@ -85,9 +85,9 @@ export function validateEmail(email) {
 
 export function validatePassword(password) {
 	if (typeof password !== "string" || password.length < 8) {
-		return "密码至少需要 8 个字符。";
+		return "The password must contain at least 8 characters.";
 	}
-	if (password.length > 128) return "密码不能超过 128 个字符。";
+	if (password.length > 128) return "The password cannot exceed 128 characters.";
 	return null;
 }
 

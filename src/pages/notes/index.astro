@@ -42,18 +42,18 @@ function directoryLabel(sourcePath: string) {
 }
 ---
 
-<MainGridLayout title="学习笔记" description="计算机科学学习笔记与实践记录">
+<MainGridLayout title="Learning Notes" description="Computer science notes and practical records">
 	<div class="card-base px-6 py-7 md:px-9 md:py-8 mb-4 onload-animation">
 		<div class="flex items-center gap-3 mb-3">
 			<div class="h-11 w-11 rounded-lg bg-[var(--btn-regular-bg)] text-[var(--primary)] flex items-center justify-center">
 				<Icon name="material-symbols:library-books-outline-rounded" class="text-[1.75rem]" />
 			</div>
 			<div>
-				<h1 class="font-serif font-bold text-3xl text-black/90 dark:text-white/90">学习笔记</h1>
-				<p class="text-black/50 dark:text-white/50 mt-1">按学习领域整理，共 <span id="notes-total-count" data-static-count={notes.length}>{notes.length}</span> 篇</p>
+				<h1 class="font-serif font-bold text-3xl text-black/90 dark:text-white/90">Learning Notes</h1>
+				<p class="text-black/50 dark:text-white/50 mt-1">Organized by field · <span id="notes-total-count" data-static-count={notes.length}>{notes.length} {notes.length === 1 ? "note" : "notes"}</span></p>
 			</div>
 		</div>
-		<nav id="notes-category-nav" aria-label="笔记分类" class="flex flex-wrap gap-2 mt-5">
+		<nav id="notes-category-nav" aria-label="Note categories" class="flex flex-wrap gap-2 mt-5">
 			{sections.map((section) => (
 				<a href={`#${section.slug}`} data-note-category={section.label} class="btn-regular rounded-lg px-3 py-2 text-sm font-medium">
 					{section.label}<span class="note-category-nav-count ml-1.5 text-black/35 dark:text-white/35" data-static-count={section.notes.length}>{section.notes.length}</span>
@@ -66,7 +66,7 @@ function directoryLabel(sourcePath: string) {
 		<section id={section.slug} data-note-category={section.label} data-static-count={section.notes.length} class="note-category-section card-base px-6 py-6 md:px-9 md:py-7 mb-4 scroll-mt-24 onload-animation">
 			<div class="flex items-baseline justify-between gap-4 border-b border-[var(--line-divider)] pb-3 mb-2">
 				<h2 class="font-serif font-bold text-2xl text-black/85 dark:text-white/85">{section.label}</h2>
-				<span class="note-category-count text-sm text-black/40 dark:text-white/40 whitespace-nowrap">{section.notes.length} 篇</span>
+				<span class="note-category-count text-sm text-black/40 dark:text-white/40 whitespace-nowrap">{section.notes.length} {section.notes.length === 1 ? "note" : "notes"}</span>
 			</div>
 			<div class="note-category-list divide-y divide-[var(--line-divider)]">
 				{section.notes.map((note) => {

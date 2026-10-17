@@ -9,8 +9,8 @@ import { LinkPreset } from "./types/config";
 
 export const siteConfig: SiteConfig = {
 	title: "Cedrian Ian",
-	subtitle: "个人博客",
-	lang: "zh_CN", // Language code, e.g. 'en', 'zh_CN', 'ja', etc.
+	subtitle: "Personal Blog",
+	lang: "en", // Language code, e.g. 'en', 'zh_CN', 'ja', etc.
 	themeColor: {
 		hue: 195, // Default hue for the theme color, from 0 to 360. e.g. red: 0, teal: 200, cyan: 250, pink: 345
 		fixed: true, // Hide the theme color picker for visitors
@@ -42,13 +42,13 @@ export const siteConfig: SiteConfig = {
 export const navBarConfig: NavBarConfig = {
 	links: [
 		{
-			name: "笔记",
+			name: "Notes",
 			url: "/notes/",
 			external: false,
 		},
 		LinkPreset.Archive,
 		{
-			name: "账户",
+			name: "Account",
 			url: "/account/",
 			external: false,
 		},

@@ -8,18 +8,18 @@ import { publicNotePath, resolvePublishedNote } from "../../server/notes.js";
 
 export async function onRequestPost(context) {
 	if (!requestHasSameOrigin(context.request)) {
-		return json({ error: "请求来源无效。" }, 403);
+		return json({ error: "Invalid request origin." }, 403);
 	}
 	let body;
 	try {
 		body = await readJson(context.request);
 	} catch (error) {
-		return json({ error: error.message || "请求格式无效。" }, 400);
+		return json({ error: error.message || "Invalid request format." }, 400);
 	}
 	const noteKey = String(body.note || "");
 	try {
 		const resolved = await resolvePublishedNote(context.env.DB, noteKey);
-		if (!resolved) return json({ error: "只能点赞已发布的笔记。" }, 404);
+		if (!resolved) return json({ error: "Only published notes can be liked." }, 404);
 		const existing = await context.env.DB.prepare(
 			"SELECT 1 AS liked FROM note_likes WHERE note_key = ?1 AND user_id = ?2",
 		)
@@ -55,6 +55,6 @@ export async function onRequestPost(context) {
 		return json({ liked, likeCount: Number(count?.count || 0) });
 	} catch (error) {
 		console.error("Note like update failed:", error.message);
-		return json({ error: "点赞操作失败，请稍后重试。" }, 500);
+		return json({ error: "Failed to update the like. Please try again later." }, 500);
 	}
 }

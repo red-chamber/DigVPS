@@ -16,20 +16,20 @@ import {
 export async function onRequestPost(context) {
 	const { request, env } = context;
 	if (!requestHasSameOrigin(request)) {
-		return json({ error: "请求来源无效。" }, 403);
+		return json({ error: "Invalid request origin." }, 403);
 	}
 
 	let body;
 	try {
 		body = await readJson(request);
 	} catch (error) {
-		return json({ error: error.message || "请求格式无效。" }, 400);
+		return json({ error: error.message || "Invalid request format." }, 400);
 	}
 
 	const email = normalizeEmail(body.email);
 	const code = String(body.code || "").trim();
 	if (!validateEmail(email) || !/^\d{6}$/u.test(code)) {
-		return json({ error: "邮箱或验证码格式无效。" }, 400);
+		return json({ error: "Invalid email address or verification code." }, 400);
 	}
 
 	const now = Math.floor(Date.now() / 1000);
@@ -45,16 +45,16 @@ export async function onRequestPost(context) {
 			.first();
 
 		if (!record || record.email_verified || !record.code_hash) {
-			return json({ error: "验证码无效或已经使用。" }, 400);
+			return json({ error: "The verification code is invalid or has already been used." }, 400);
 		}
 		if (record.expires_at <= now) {
 			await env.DB.prepare("DELETE FROM email_verifications WHERE user_id = ?1")
 				.bind(record.id)
 				.run();
-			return json({ error: "验证码已经过期，请重新获取。" }, 400);
+			return json({ error: "The verification code has expired. Request a new one." }, 400);
 		}
 		if (record.attempts >= verificationAttemptLimit()) {
-			return json({ error: "验证码尝试次数过多，请重新获取。" }, 429);
+			return json({ error: "Too many verification attempts. Request a new code." }, 429);
 		}
 
 		const suppliedHash = await verificationCodeHash(env, record.id, code);
@@ -64,7 +64,7 @@ export async function onRequestPost(context) {
 			)
 				.bind(record.id)
 				.run();
-			return json({ error: "验证码错误。" }, 400);
+			return json({ error: "Incorrect verification code." }, 400);
 		}
 
 		const session = await createSessionRecord(record.id, now);
@@ -97,6 +97,6 @@ export async function onRequestPost(context) {
 		);
 	} catch (error) {
 		console.error("Email verification failed:", error.message);
-		return json({ error: "验证服务暂时不可用，请稍后重试。" }, 500);
+		return json({ error: "The verification service is temporarily unavailable. Please try again later." }, 500);
 	}
 }

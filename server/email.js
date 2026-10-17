@@ -15,14 +15,14 @@ export async function sendVerificationEmail(env, recipient, code) {
 		body: JSON.stringify({
 			sender: { email: senderEmail, name: "Cedrian Ian" },
 			to: [{ email: recipient }],
-			subject: "Cedrian Ian 注册验证码",
-			textContent: `你的 Cedrian Ian 注册验证码是：${code}\n\n验证码将在 ${minutes} 分钟后失效。若不是你本人操作，请忽略此邮件。`,
+			subject: "Cedrian Ian verification code",
+			textContent: `Your Cedrian Ian verification code is: ${code}\n\nThis code expires in ${minutes} minutes. If you did not request it, you can ignore this email.`,
 			htmlContent: `
 				<div style="font-family:system-ui,-apple-system,sans-serif;line-height:1.6;color:#17343d;max-width:560px;margin:auto;padding:24px">
-					<h1 style="font-size:22px;margin:0 0 16px">Cedrian Ian 邮箱验证</h1>
-					<p>你的注册验证码是：</p>
+					<h1 style="font-size:22px;margin:0 0 16px">Verify Your Cedrian Ian Email</h1>
+					<p>Your registration verification code is:</p>
 					<p style="font-size:32px;letter-spacing:8px;font-weight:700;margin:20px 0">${code}</p>
-					<p>验证码将在 ${minutes} 分钟后失效。若不是你本人操作，请忽略此邮件。</p>
+					<p>This code expires in ${minutes} minutes. If you did not request it, you can ignore this email.</p>
 				</div>`,
 		}),
 	});

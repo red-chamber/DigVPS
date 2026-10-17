@@ -16,20 +16,20 @@ import {
 export async function onRequestPost(context) {
 	const { request, env } = context;
 	if (!requestHasSameOrigin(request)) {
-		return json({ error: "请求来源无效。" }, 403);
+		return json({ error: "Invalid request origin." }, 403);
 	}
 
 	let body;
 	try {
 		body = await readJson(request);
 	} catch (error) {
-		return json({ error: error.message || "请求格式无效。" }, 400);
+		return json({ error: error.message || "Invalid request format." }, 400);
 	}
 
 	const identifier = normalizeEmail(body.email);
 	const password = typeof body.password === "string" ? body.password : "";
 	if (!identifier || !password) {
-		return json({ error: "请输入邮箱和密码。" }, 400);
+		return json({ error: "Enter your email and password." }, 400);
 	}
 
 	const now = Math.floor(Date.now() / 1000);
@@ -51,7 +51,7 @@ export async function onRequestPost(context) {
 			});
 			return json(
 				{
-					error: "登录尝试次数过多，请稍后再试。",
+					error: "Too many sign-in attempts. Please try again later.",
 					retryAfter: user.locked_until - now,
 				},
 				429,
@@ -91,7 +91,7 @@ export async function onRequestPost(context) {
 					path: "/api/auth/login",
 				});
 			}
-			return json({ error: "邮箱或密码错误。" }, 401);
+			return json({ error: "Incorrect email or password." }, 401);
 		}
 		if (!user.email_verified) {
 			await recordActivity(context, {
@@ -99,7 +99,7 @@ export async function onRequestPost(context) {
 				eventType: "login_unverified",
 				path: "/api/auth/login",
 			});
-			return json({ error: "请先完成邮箱验证。" }, 403);
+			return json({ error: "Verify your email before signing in." }, 403);
 		}
 
 		const session = await createSessionRecord(user.id, now);
@@ -132,6 +132,6 @@ export async function onRequestPost(context) {
 		);
 	} catch (error) {
 		console.error("Login failed:", error.message);
-		return json({ error: "登录服务暂时不可用，请稍后重试。" }, 500);
+		return json({ error: "The sign-in service is temporarily unavailable. Please try again later." }, 500);
 	}
 }

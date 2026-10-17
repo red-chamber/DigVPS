@@ -4,7 +4,7 @@ import { validPublishedNoteSlug } from "../../server/notes.js";
 export async function onRequestGet(context) {
 	const slug = new URL(context.request.url).searchParams.get("slug") || "";
 	if (!validPublishedNoteSlug(slug)) {
-		return json({ error: "笔记地址无效。" }, 400);
+		return json({ error: "The note address is invalid." }, 400);
 	}
 	try {
 		const note = await context.env.DB.prepare(
@@ -15,7 +15,7 @@ export async function onRequestGet(context) {
 		)
 			.bind(slug)
 			.first();
-		if (!note) return json({ error: "笔记不存在或尚未发布。" }, 404);
+		if (!note) return json({ error: "The note does not exist or has not been published." }, 404);
 		return json({
 			note: {
 				...note,
@@ -25,6 +25,6 @@ export async function onRequestGet(context) {
 		});
 	} catch (error) {
 		console.error("Published note lookup failed:", error.message);
-		return json({ error: "笔记读取失败，请稍后重试。" }, 500);
+		return json({ error: "Failed to load the note. Please try again later." }, 500);
 	}
 }

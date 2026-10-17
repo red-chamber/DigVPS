@@ -55,7 +55,7 @@ function createCategorySection(category: string, index: number) {
 	const count = document.createElement("span");
 	count.className =
 		"note-category-count whitespace-nowrap text-sm text-black/40";
-	count.textContent = "0 篇";
+	count.textContent = "0 notes";
 	const list = document.createElement("div");
 	list.className = "note-category-list divide-y divide-[var(--line-divider)]";
 	header.append(heading, count);
@@ -133,7 +133,7 @@ export function initNotesIndex() {
 				const label = section.querySelector<HTMLElement>(
 					".note-category-count",
 				);
-				if (label) label.textContent = `${count} 篇`;
+				if (label) label.textContent = `${count} ${count === 1 ? "note" : "notes"}`;
 				const nav = Array.from(
 					document.querySelectorAll<HTMLElement>(
 						"#notes-category-nav [data-note-category]",
@@ -151,14 +151,15 @@ export function initNotesIndex() {
 			const visibleStaticCount = document.querySelectorAll(
 				".note-category-list [data-static-note-key]",
 			).length;
-			total.textContent = String(visibleStaticCount + notes.length);
+			const totalCount = visibleStaticCount + notes.length;
+			total.textContent = `${totalCount} ${totalCount === 1 ? "note" : "notes"}`;
 		} catch (error) {
 			const message = document.querySelector<HTMLElement>(
 				"#dynamic-notes-error",
 			);
 			if (message) {
 				message.textContent =
-					error instanceof Error ? error.message : "在线笔记读取失败。";
+					error instanceof Error ? error.message : "Failed to load published notes.";
 				message.classList.remove("hidden");
 			}
 		} finally {

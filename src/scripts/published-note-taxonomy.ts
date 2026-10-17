@@ -11,7 +11,7 @@ function createCategoryLink(name: string, count: number) {
 	const link = document.createElement("a");
 	link.href = `/archive/?category=${encodeURIComponent(name)}`;
 	link.dataset.categoryName = name;
-	link.setAttribute("aria-label", `查看 ${name} 分类下的全部笔记`);
+	link.setAttribute("aria-label", `View all notes in the ${name} category`);
 	const button = document.createElement("button");
 	button.type = "button";
 	button.className =
@@ -38,7 +38,7 @@ function createTagLink(name: string) {
 	const link = document.createElement("a");
 	link.href = `/archive/?tag=${encodeURIComponent(name)}`;
 	link.dataset.tagName = name;
-	link.setAttribute("aria-label", `查看带有 ${name} 标签的全部笔记`);
+	link.setAttribute("aria-label", `View all notes tagged ${name}`);
 	link.className = "btn-regular h-8 rounded-lg px-3 text-sm";
 	link.textContent = name;
 	return link;
@@ -168,7 +168,7 @@ export function initPublishedNoteTaxonomy() {
 				.closest("widget-layout")
 				?.classList.toggle("hidden", !tags.querySelector("[data-tag-name]"));
 		} catch (error) {
-			console.error("在线笔记分类与标签读取失败。", error);
+			console.error("Failed to load published-note categories and tags.", error);
 		} finally {
 			runningTaxonomies.delete(categories);
 			if (pendingTaxonomies.delete(categories)) initPublishedNoteTaxonomy();

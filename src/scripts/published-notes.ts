@@ -30,7 +30,7 @@ export function getPublishedNoteData() {
 			.then(async (response) => {
 				const result = await response.json();
 				if (!response.ok) {
-					throw new Error(result.error || "在线笔记读取失败。");
+					throw new Error(result.error || "Failed to load published notes.");
 				}
 				return {
 					notes: (result.notes || []) as PublishedNoteSummary[],

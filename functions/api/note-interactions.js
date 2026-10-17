@@ -5,7 +5,7 @@ export async function onRequestGet(context) {
 	const noteKey = new URL(context.request.url).searchParams.get("note") || "";
 	try {
 		const resolved = await resolvePublishedNote(context.env.DB, noteKey);
-		if (!resolved) return json({ error: "只能查看已发布笔记的互动。" }, 404);
+		if (!resolved) return json({ error: "Interactions are available only for published notes." }, 404);
 
 		const [likes, liked, comments] = await context.env.DB.batch([
 			context.env.DB.prepare(
@@ -28,6 +28,6 @@ export async function onRequestGet(context) {
 		});
 	} catch (error) {
 		console.error("Note interactions lookup failed:", error.message);
-		return json({ error: "互动信息读取失败，请稍后重试。" }, 500);
+		return json({ error: "Failed to load interactions. Please try again later." }, 500);
 	}
 }

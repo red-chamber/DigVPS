@@ -2,48 +2,48 @@
 import AuthLayout from "../layouts/AuthLayout.astro";
 ---
 
-<AuthLayout title="注册" description="注册 Cedrian Ian 账户">
+<AuthLayout title="Register" description="Create a Cedrian Ian account">
 	<header class="mb-7">
-		<h1 class="font-serif text-3xl font-bold text-black/85">注册</h1>
-		<p class="mt-2 text-sm text-black/50">使用邮箱接收六位验证码，验证后即可登录。</p>
+		<h1 class="font-serif text-3xl font-bold text-black/85">Register</h1>
+		<p class="mt-2 text-sm text-black/50">A six-digit verification code will be sent to your email.</p>
 	</header>
 
 	<form id="registration-form" class="space-y-5">
 		<label class="block">
-			<span class="mb-2 block text-sm font-medium text-black/70">邮箱</span>
+			<span class="mb-2 block text-sm font-medium text-black/70">Email</span>
 			<input id="register-email" type="email" autocomplete="email" required class="auth-input" placeholder="name@example.com" />
 		</label>
 		<label class="block">
-			<span class="mb-2 block text-sm font-medium text-black/70">密码</span>
-			<input id="register-password" type="password" autocomplete="new-password" minlength="8" maxlength="128" required class="auth-input" placeholder="至少 8 个字符" />
+			<span class="mb-2 block text-sm font-medium text-black/70">Password</span>
+			<input id="register-password" type="password" autocomplete="new-password" minlength="8" maxlength="128" required class="auth-input" placeholder="At least 8 characters" />
 		</label>
 		<label class="block">
-			<span class="mb-2 block text-sm font-medium text-black/70">确认密码</span>
-			<input id="register-confirm" type="password" autocomplete="new-password" minlength="8" maxlength="128" required class="auth-input" placeholder="再次输入密码" />
+			<span class="mb-2 block text-sm font-medium text-black/70">Confirm Password</span>
+			<input id="register-confirm" type="password" autocomplete="new-password" minlength="8" maxlength="128" required class="auth-input" placeholder="Enter your password again" />
 		</label>
 		<p id="registration-message" class="auth-message hidden" role="alert"></p>
-		<button id="registration-submit" type="submit" class="auth-submit">发送邮箱验证码</button>
+		<button id="registration-submit" type="submit" class="auth-submit">Send Verification Code</button>
 	</form>
 
 	<form id="verification-form" class="hidden space-y-5">
 		<div class="rounded-lg bg-[var(--btn-regular-bg)] px-4 py-3 text-sm text-black/60">
-			验证码已发送至 <strong id="verification-email" class="text-black/80"></strong>
+			A verification code was sent to <strong id="verification-email" class="text-black/80"></strong>
 		</div>
 		<label class="block">
-			<span class="mb-2 block text-sm font-medium text-black/70">六位验证码</span>
+			<span class="mb-2 block text-sm font-medium text-black/70">Six-Digit Verification Code</span>
 			<input id="verification-code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required class="auth-input text-center text-2xl tracking-[0.4em]" placeholder="000000" />
 		</label>
 		<p id="verification-message" class="auth-message hidden" role="alert"></p>
-		<button id="verification-submit" type="submit" class="auth-submit">确认验证码并登录</button>
+		<button id="verification-submit" type="submit" class="auth-submit">Verify and Sign In</button>
 		<div class="flex items-center justify-between text-sm">
-			<button id="change-email" type="button" class="text-black/45 hover:text-[var(--primary)]">更换邮箱</button>
-			<button id="resend-code" type="button" class="text-[var(--primary)] hover:underline disabled:opacity-50">重新发送</button>
+			<button id="change-email" type="button" class="text-black/45 hover:text-[var(--primary)]">Change Email</button>
+			<button id="resend-code" type="button" class="text-[var(--primary)] hover:underline disabled:opacity-50">Resend</button>
 		</div>
 	</form>
 
 	<p class="mt-6 text-center text-sm text-black/50">
-		已有账户？
-		<a href="/login/" data-astro-reload class="font-medium text-[var(--primary)] hover:underline">登录</a>
+		Already have an account?
+		<a href="/login/" data-astro-reload class="font-medium text-[var(--primary)] hover:underline">Sign In</a>
 	</p>
 </AuthLayout>
 
@@ -133,20 +133,20 @@ import AuthLayout from "../layouts/AuthLayout.astro";
 			body: JSON.stringify({ email: pendingEmail, password: pendingPassword }),
 		});
 		const result = await response.json();
-		if (!response.ok) throw new Error(result.error || "验证码发送失败。");
+		if (!response.ok) throw new Error(result.error || "Failed to send the verification code.");
 	}
 
 	registrationForm?.addEventListener("submit", async (event) => {
 		event.preventDefault();
 		if (!emailInput || !passwordInput || !confirmInput || !registrationSubmit) return;
 		if (passwordInput.value !== confirmInput.value) {
-			showMessage(registrationMessage, "两次输入的密码不一致。", "error");
+			showMessage(registrationMessage, "The passwords do not match.", "error");
 			return;
 		}
 		pendingEmail = emailInput.value.trim();
 		pendingPassword = passwordInput.value;
 		registrationSubmit.disabled = true;
-		registrationSubmit.textContent = "正在发送…";
+		registrationSubmit.textContent = "Sending…";
 		registrationMessage?.classList.add("hidden");
 		try {
 			await requestCode();
@@ -157,12 +157,12 @@ import AuthLayout from "../layouts/AuthLayout.astro";
 		} catch (error) {
 			showMessage(
 				registrationMessage,
-				error instanceof Error ? error.message : "验证码发送失败。",
+				error instanceof Error ? error.message : "Failed to send the verification code.",
 				"error",
 			);
 		} finally {
 			registrationSubmit.disabled = false;
-			registrationSubmit.textContent = "发送邮箱验证码";
+			registrationSubmit.textContent = "Send Verification Code";
 		}
 	});
 
@@ -170,7 +170,7 @@ import AuthLayout from "../layouts/AuthLayout.astro";
 		event.preventDefault();
 		if (!codeInput || !verificationSubmit) return;
 		verificationSubmit.disabled = true;
-		verificationSubmit.textContent = "正在验证…";
+		verificationSubmit.textContent = "Verifying…";
 		verificationMessage?.classList.add("hidden");
 		try {
 			const response = await fetch("/api/auth/verify", {
@@ -179,37 +179,37 @@ import AuthLayout from "../layouts/AuthLayout.astro";
 				body: JSON.stringify({ email: pendingEmail, code: codeInput.value }),
 			});
 			const result = await response.json();
-			if (!response.ok) throw new Error(result.error || "邮箱验证失败。");
-			showMessage(verificationMessage, "验证成功，正在进入网站……", "success");
+			if (!response.ok) throw new Error(result.error || "Email verification failed.");
+			showMessage(verificationMessage, "Verification complete. Entering the site…", "success");
 			window.location.assign("/");
 		} catch (error) {
 			showMessage(
 				verificationMessage,
-				error instanceof Error ? error.message : "邮箱验证失败。",
+				error instanceof Error ? error.message : "Email verification failed.",
 				"error",
 			);
 		} finally {
 			verificationSubmit.disabled = false;
-			verificationSubmit.textContent = "确认验证码并登录";
+			verificationSubmit.textContent = "Verify and Sign In";
 		}
 	});
 
 	resendButton?.addEventListener("click", async () => {
 		resendButton.disabled = true;
-		resendButton.textContent = "发送中…";
+		resendButton.textContent = "Sending…";
 		verificationMessage?.classList.add("hidden");
 		try {
 			await requestCode();
-			showMessage(verificationMessage, "验证码已重新发送。", "success");
+			showMessage(verificationMessage, "A new verification code has been sent.", "success");
 		} catch (error) {
 			showMessage(
 				verificationMessage,
-				error instanceof Error ? error.message : "验证码发送失败。",
+				error instanceof Error ? error.message : "Failed to send the verification code.",
 				"error",
 			);
 		} finally {
 			resendButton.disabled = false;
-			resendButton.textContent = "重新发送";
+			resendButton.textContent = "Resend";
 		}
 	});
 

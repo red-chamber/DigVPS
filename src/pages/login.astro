@@ -2,15 +2,15 @@
 import AuthLayout from "../layouts/AuthLayout.astro";
 ---
 
-<AuthLayout title="登录" description="登录 Cedrian Ian">
+<AuthLayout title="Sign In" description="Sign in to Cedrian Ian">
 	<header class="mb-7">
-		<h1 class="font-serif text-3xl font-bold text-black/85">登录</h1>
-		<p class="mt-2 text-sm text-black/50">登录状态会在当前设备保存 3 天。</p>
+		<h1 class="font-serif text-3xl font-bold text-black/85">Sign In</h1>
+		<p class="mt-2 text-sm text-black/50">Your session will remain active on this device for 3 days.</p>
 	</header>
 
 	<form id="login-form" class="space-y-5">
 		<label class="block">
-			<span class="mb-2 block text-sm font-medium text-black/70">邮箱</span>
+			<span class="mb-2 block text-sm font-medium text-black/70">Email</span>
 			<input
 				id="login-email"
 				name="email"
@@ -23,7 +23,7 @@ import AuthLayout from "../layouts/AuthLayout.astro";
 			/>
 		</label>
 		<label class="block">
-			<span class="mb-2 block text-sm font-medium text-black/70">密码</span>
+			<span class="mb-2 block text-sm font-medium text-black/70">Password</span>
 			<input
 				id="login-password"
 				name="password"
@@ -31,17 +31,17 @@ import AuthLayout from "../layouts/AuthLayout.astro";
 				autocomplete="current-password"
 				required
 				class="auth-input"
-				placeholder="输入密码"
+				placeholder="Enter your password"
 			/>
 		</label>
 
 		<p id="login-message" class="auth-message hidden" role="alert"></p>
-		<button id="login-submit" type="submit" class="auth-submit">确认登录</button>
+		<button id="login-submit" type="submit" class="auth-submit">Sign In</button>
 	</form>
 
 	<p class="mt-6 text-center text-sm text-black/50">
-		还没有账户？
-		<a href="/register/" data-astro-reload class="font-medium text-[var(--primary)] hover:underline">注册</a>
+		No account yet?
+		<a href="/register/" data-astro-reload class="font-medium text-[var(--primary)] hover:underline">Register</a>
 	</p>
 </AuthLayout>
 
@@ -111,7 +111,7 @@ import AuthLayout from "../layouts/AuthLayout.astro";
 		event.preventDefault();
 		if (!email || !password || !message || !submit) return;
 		submit.disabled = true;
-		submit.textContent = "正在登录…";
+		submit.textContent = "Signing in…";
 		message.classList.add("hidden");
 		try {
 			const response = await fetch("/api/auth/login", {
@@ -120,16 +120,16 @@ import AuthLayout from "../layouts/AuthLayout.astro";
 				body: JSON.stringify({ email: email.value, password: password.value }),
 			});
 			const result = await response.json();
-			if (!response.ok) throw new Error(result.error || "登录失败。");
+			if (!response.ok) throw new Error(result.error || "Sign-in failed.");
 			window.location.assign(destinationAfterLogin());
 		} catch (error) {
 			message.textContent =
-				error instanceof Error ? error.message : "登录失败，请稍后重试。";
+				error instanceof Error ? error.message : "Sign-in failed. Please try again later.";
 			message.dataset.kind = "error";
 			message.classList.remove("hidden");
 		} finally {
 			submit.disabled = false;
-			submit.textContent = "确认登录";
+			submit.textContent = "Sign In";
 		}
 	});
 </script>

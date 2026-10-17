@@ -21,7 +21,7 @@ export function getTimelineData() {
 			.then(async (response) => {
 				const result = await response.json();
 				if (!response.ok) {
-					throw new Error(result.error || "公开时间线读取失败。");
+					throw new Error(result.error || "Failed to load the public timeline.");
 				}
 				return {
 					events: (result.events || []) as CustomTimelineEvent[],

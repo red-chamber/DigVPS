@@ -117,7 +117,7 @@ export const onRequest = async (context) => {
 	} catch (error) {
 		console.error("Session middleware failed:", error.message);
 		if (pathname.startsWith("/api/")) {
-			return json({ error: "会话服务暂时不可用。" }, 503);
+			return json({ error: "The session service is temporarily unavailable." }, 503);
 		}
 		return new Response("Authentication service unavailable.", {
 			status: 503,
@@ -130,7 +130,7 @@ export const onRequest = async (context) => {
 	}
 	if (!session) {
 		return pathname.startsWith("/api/")
-			? json({ error: "尚未登录。" }, 401)
+			? json({ error: "You are not signed in." }, 401)
 			: loginRedirect(url);
 	}
 

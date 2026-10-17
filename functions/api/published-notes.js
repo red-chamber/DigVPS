@@ -38,6 +38,6 @@ export async function onRequestGet(context) {
 		return json({ notes, deletedStaticNotes, deletedDynamicNotes });
 	} catch (error) {
 		console.error("Published notes lookup failed:", error.message);
-		return json({ error: "笔记列表读取失败，请确认数据库迁移已执行。" }, 500);
+		return json({ error: "Failed to load the note list. Confirm that the database migration has been applied." }, 500);
 	}
 }

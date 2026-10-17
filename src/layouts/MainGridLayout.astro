@@ -115,9 +115,9 @@ const mainPanelTop = siteConfig.banner.enable
 
                 <details style="position: fixed; right: 1rem; bottom: 5.25rem; z-index: 70"
                          class="group/toc md:!right-8 md:!bottom-[6rem] 2xl:!hidden pointer-events-auto">
-                    <summary aria-label="打开本页目录" class="list-none [&::-webkit-details-marker]:hidden cursor-pointer ml-auto w-fit h-12 px-4 rounded-full btn-card shadow-lg border border-[var(--line-color)] flex items-center gap-2 text-[var(--btn-content)] font-bold select-none">
+                    <summary aria-label="Open table of contents" class="list-none [&::-webkit-details-marker]:hidden cursor-pointer ml-auto w-fit h-12 px-4 rounded-full btn-card shadow-lg border border-[var(--line-color)] flex items-center gap-2 text-[var(--btn-content)] font-bold select-none">
                         <Icon name="material-symbols:format-list-bulleted-rounded" class="text-xl" />
-                        <span>目录</span>
+                        <span>Contents</span>
                     </summary>
                     <div class="toc-scroll-container absolute right-0 bottom-14 w-[min(20rem,calc(100vw_-_2rem))] max-h-[min(60vh,32rem)] overflow-y-auto overflow-x-hidden rounded-[var(--radius-large)] bg-[var(--float-panel-bg)] backdrop-blur-[6px] shadow-xl border border-[var(--line-color)] p-2">
                         <TOC headings={headings}></TOC>

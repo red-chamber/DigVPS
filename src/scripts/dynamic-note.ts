@@ -26,7 +26,7 @@ export function initDynamicNote() {
 				{ cache: "no-store" },
 			);
 			const result = await response.json();
-			if (!response.ok) throw new Error(result.error || "笔记读取失败。");
+			if (!response.ok) throw new Error(result.error || "Failed to load the note.");
 			const note = result.note;
 			const title = article.querySelector<HTMLElement>("#dynamic-note-title");
 			const description = article.querySelector<HTMLElement>(
@@ -43,7 +43,7 @@ export function initDynamicNote() {
 			if (description) description.textContent = note.description;
 			if (category) category.textContent = note.category;
 			if (meta) {
-				meta.textContent = `${new Date(note.published_at * 1000).toLocaleString("zh-CN")} · ${(note.tags || []).join(" · ")}`;
+				meta.textContent = `${new Date(note.published_at * 1000).toLocaleString("en-US")} · ${(note.tags || []).join(" · ")}`;
 			}
 			if (content) content.innerHTML = note.rendered_html;
 			document.title = `${note.title} - Cedrian Ian`;
@@ -57,7 +57,7 @@ export function initDynamicNote() {
 			initNoteInteractions(wrapper);
 		} catch (error) {
 			loading.textContent =
-				error instanceof Error ? error.message : "笔记读取失败。";
+				error instanceof Error ? error.message : "Failed to load the note.";
 			loading.className = "card-base mb-4 px-6 py-7 text-red-700 md:px-9";
 		} finally {
 			loadingNotes.delete(article);

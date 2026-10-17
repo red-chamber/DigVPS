@@ -36,7 +36,7 @@ const visibleHeadings = headings.filter(
 ---
 {isPostsRoute && visibleHeadings.length > 0 &&
 <table-of-contents class:list={[className, "block py-2"]}>
-    <div class="px-3 pb-2 text-xs font-bold tracking-[0.12em] text-black/35 dark:text-white/35">本页目录</div>
+    <div class="px-3 pb-2 text-xs font-bold tracking-[0.12em] text-black/35 dark:text-white/35">On This Page</div>
     {visibleHeadings.map((heading) => {
         const level = heading.depth - minDepth;
         return (

@@ -3,8 +3,8 @@ import NoteInteractions from "@components/NoteInteractions.astro";
 import MainGridLayout from "@layouts/MainGridLayout.astro";
 ---
 
-<MainGridLayout title="阅读笔记" description="管理员发布的 Markdown 笔记">
-	<div id="dynamic-note-loading" class="card-base mb-4 px-6 py-7 text-black/55 md:px-9">正在读取笔记……</div>
+<MainGridLayout title="Read Note" description="Markdown notes published by the administrator">
+	<div id="dynamic-note-loading" class="card-base mb-4 px-6 py-7 text-black/55 md:px-9">Loading note…</div>
 	<article id="dynamic-note" class="card-base mb-4 hidden px-6 py-7 md:px-9 md:py-8">
 		<p id="dynamic-note-category" class="text-sm font-medium text-[var(--primary)]"></p>
 		<h1 id="dynamic-note-title" class="mt-1 font-serif text-3xl font-bold text-black/90"></h1>
