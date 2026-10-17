@@ -1,6 +1,7 @@
 import { getPublishedNoteData } from "./published-notes";
 
-const initializedTaxonomies = new WeakSet<HTMLElement>();
+const runningTaxonomies = new WeakSet<HTMLElement>();
+const pendingTaxonomies = new WeakSet<HTMLElement>();
 
 function normalized(value: string) {
 	return value.trim().toLocaleLowerCase("zh-CN");
@@ -46,8 +47,12 @@ function createTagLink(name: string) {
 export function initPublishedNoteTaxonomy() {
 	const categories = document.querySelector<HTMLElement>("#categories");
 	const tags = document.querySelector<HTMLElement>("#tags");
-	if (!categories || !tags || initializedTaxonomies.has(categories)) return;
-	initializedTaxonomies.add(categories);
+	if (!categories || !tags) return;
+	if (runningTaxonomies.has(categories)) {
+		pendingTaxonomies.add(categories);
+		return;
+	}
+	runningTaxonomies.add(categories);
 	void (async () => {
 		try {
 			const { notes, deletedStaticNotes } = await getPublishedNoteData();
@@ -57,13 +62,26 @@ export function initPublishedNoteTaxonomy() {
 			for (const card of document.querySelectorAll<HTMLElement>(
 				"[data-static-note-key]",
 			)) {
-				if (!deletedKeys.has(card.dataset.staticNoteKey || "")) continue;
-				const separator = card.nextElementSibling;
-				card.remove();
-				if (separator?.classList.contains("border-dashed")) separator.remove();
+				if (deletedKeys.has(card.dataset.staticNoteKey || "")) {
+					const separator = card.nextElementSibling;
+					card.remove();
+					if (separator?.classList.contains("border-dashed")) {
+						separator.remove();
+					}
+				} else {
+					card.classList.remove("hidden");
+				}
+			}
+			const hasPostCards = Boolean(
+				document.querySelector("main [data-post-card]"),
+			);
+			for (const pagination of document.querySelectorAll<HTMLElement>(
+				"[data-post-pagination]",
+			)) {
+				pagination.classList.toggle("hidden", !hasPostCards);
 			}
 			const categoryCounts = new Map<string, { name: string; count: number }>();
-			const tagNames = new Map<string, string>();
+			const tagCounts = new Map<string, { name: string; count: number }>();
 			for (const note of notes) {
 				const category = note.category.trim();
 				const key = normalized(category);
@@ -73,7 +91,12 @@ export function initPublishedNoteTaxonomy() {
 					count: (current?.count || 0) + 1,
 				});
 				for (const tag of note.tags) {
-					tagNames.set(normalized(tag), tag.trim());
+					const key = normalized(tag);
+					const currentTag = tagCounts.get(key);
+					tagCounts.set(key, {
+						name: currentTag?.name || tag.trim(),
+						count: (currentTag?.count || 0) + 1,
+					});
 				}
 			}
 
@@ -83,12 +106,20 @@ export function initPublishedNoteTaxonomy() {
 				).map((link) => [normalized(link.dataset.categoryName || ""), link]),
 			);
 			const deletedCategoryCounts = new Map<string, number>();
+			const deletedTagCounts = new Map<string, number>();
 			for (const note of deletedStaticNotes) {
 				const key = normalized(note.category);
 				deletedCategoryCounts.set(
 					key,
 					(deletedCategoryCounts.get(key) || 0) + 1,
 				);
+				for (const tag of note.tags) {
+					const tagKey = normalized(tag);
+					deletedTagCounts.set(
+						tagKey,
+						(deletedTagCounts.get(tagKey) || 0) + 1,
+					);
+				}
 			}
 			for (const [key, link] of categoryLinks) {
 				const badge = link.querySelector<HTMLElement>("[data-category-count]");
@@ -98,35 +129,49 @@ export function initPublishedNoteTaxonomy() {
 					Number(badge.dataset.staticCount || 0) -
 						(deletedCategoryCounts.get(key) || 0),
 				);
-				badge.dataset.staticCount = String(staticCount);
-				badge.textContent = String(staticCount);
+				const count = staticCount + (categoryCounts.get(key)?.count || 0);
+				if (count === 0) link.remove();
+				else badge.textContent = String(count);
 			}
 			for (const [key, item] of categoryCounts) {
 				const existing = categoryLinks.get(key);
-				if (existing) {
-					const badge = existing.querySelector<HTMLElement>(
-						"[data-category-count]",
-					);
-					if (badge) {
-						badge.textContent = String(
-							Number(badge.dataset.staticCount || 0) + item.count,
-						);
-					}
-				} else {
+				if (!existing) {
 					categories.append(createCategoryLink(item.name, item.count));
 				}
 			}
 
-			const existingTags = new Set(
+			const existingTags = new Map(
 				Array.from(tags.querySelectorAll<HTMLElement>("[data-tag-name]")).map(
-					(link) => normalized(link.dataset.tagName || ""),
+					(link) => [normalized(link.dataset.tagName || ""), link],
 				),
 			);
-			for (const [key, name] of tagNames) {
-				if (!existingTags.has(key)) tags.append(createTagLink(name));
+			for (const [key, link] of existingTags) {
+				const staticCount = Math.max(
+					0,
+					Number(link.dataset.staticCount || 0) -
+						(deletedTagCounts.get(key) || 0),
+				);
+				if (staticCount + (tagCounts.get(key)?.count || 0) === 0) {
+					link.remove();
+				}
 			}
+			for (const [key, item] of tagCounts) {
+				if (!existingTags.has(key)) tags.append(createTagLink(item.name));
+			}
+			categories
+				.closest("widget-layout")
+				?.classList.toggle(
+					"hidden",
+					!categories.querySelector("[data-category-name]"),
+				);
+			tags
+				.closest("widget-layout")
+				?.classList.toggle("hidden", !tags.querySelector("[data-tag-name]"));
 		} catch (error) {
 			console.error("在线笔记分类与标签读取失败。", error);
+		} finally {
+			runningTaxonomies.delete(categories);
+			if (pendingTaxonomies.delete(categories)) initPublishedNoteTaxonomy();
 		}
 	})();
 }

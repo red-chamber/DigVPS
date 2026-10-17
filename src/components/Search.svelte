@@ -5,6 +5,7 @@ import Icon from "@iconify/svelte";
 import { url } from "@utils/url-utils.ts";
 import { onMount } from "svelte";
 import type { SearchResult } from "@/global";
+import { getDeletedStaticNotes } from "../scripts/published-notes";
 
 let keywordDesktop = "";
 let keywordMobile = "";
@@ -30,6 +31,19 @@ const fakeResult: SearchResult[] = [
 		excerpt: "Try running <mark>npm build && npm preview</mark> instead.",
 	},
 ];
+
+function staticNoteKey(resultUrl: string) {
+	try {
+		const pathname = new URL(resultUrl, window.location.origin).pathname;
+		if (!pathname.startsWith("/posts/notes/")) return null;
+		const slug = decodeURIComponent(
+			pathname.slice("/posts/".length).replace(/\/$/u, ""),
+		);
+		return `static:${slug}`;
+	} catch {
+		return null;
+	}
+}
 
 const togglePanel = () => {
 	const panel = document.getElementById("search-panel");
@@ -68,6 +82,13 @@ const search = async (keyword: string, isDesktop: boolean): Promise<void> => {
 			searchResults = await Promise.all(
 				response.results.map((item) => item.data()),
 			);
+			const deleted = new Set(
+				(await getDeletedStaticNotes()).map((note) => note.note_key),
+			);
+			searchResults = searchResults.filter((item) => {
+				const noteKey = staticNoteKey(item.url);
+				return !noteKey || !deleted.has(noteKey);
+			});
 		} else if (import.meta.env.DEV) {
 			searchResults = fakeResult;
 		} else {

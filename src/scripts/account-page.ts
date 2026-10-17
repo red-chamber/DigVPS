@@ -1,4 +1,5 @@
 import { invalidatePublishedNotes } from "./published-notes";
+import { initPublishedNoteTaxonomy } from "./published-note-taxonomy";
 import { invalidateTimelineData } from "./timeline-data";
 
 const boundLogoutButtons = new WeakSet<HTMLButtonElement>();
@@ -588,6 +589,7 @@ function bindAdminTools(root: HTMLElement) {
 			invalidateTimelineData();
 			if (result.noteDeleted) {
 				invalidatePublishedNotes();
+				initPublishedNoteTaxonomy();
 				void loadAdminNotes(root);
 			}
 			await loadAdminTimeline(root);
@@ -636,6 +638,7 @@ function bindAdminTools(root: HTMLElement) {
 				renderAdminNotes(root, []);
 			}
 			invalidatePublishedNotes();
+			initPublishedNoteTaxonomy();
 			setAdminMessage(notesMessage, `已删除“${result.title || title}”。`);
 			void loadAdminTimeline(root);
 			void loadAdminActivity(root);
@@ -723,6 +726,7 @@ function bindAdminTools(root: HTMLElement) {
 			const result = await response.json();
 			if (!response.ok) throw new Error(result.error || "笔记发布失败。");
 			invalidatePublishedNotes();
+			initPublishedNoteTaxonomy();
 			form.reset();
 			void loadAdminNotes(root);
 			void loadAdminTimeline(root);

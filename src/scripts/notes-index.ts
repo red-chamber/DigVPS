@@ -3,7 +3,7 @@ import {
 	type PublishedNoteSummary,
 } from "./published-notes";
 
-const initializedIndexes = new WeakSet<HTMLElement>();
+const runningIndexes = new WeakSet<HTMLElement>();
 
 function categoryKey(value: string) {
 	return value.trim().toLocaleLowerCase("zh-CN");
@@ -11,6 +11,7 @@ function categoryKey(value: string) {
 
 function createNoteLink(note: PublishedNoteSummary) {
 	const link = document.createElement("a");
+	link.dataset.dynamicNoteKey = note.slug;
 	link.href = `/notes/read/?slug=${encodeURIComponent(note.slug)}`;
 	link.className =
 		"group flex items-center justify-between gap-4 rounded-md py-3.5 transition-all hover:bg-[var(--btn-plain-bg-hover)] hover:px-3";
@@ -42,6 +43,7 @@ function createCategorySection(category: string, index: number) {
 	section.id = id;
 	section.dataset.noteCategory = category;
 	section.dataset.staticCount = "0";
+	section.dataset.dynamicSection = "";
 	section.className =
 		"note-category-section card-base mb-4 scroll-mt-24 px-6 py-6 md:px-9 md:py-7";
 	const header = document.createElement("div");
@@ -63,6 +65,7 @@ function createCategorySection(category: string, index: number) {
 	const navLink = document.createElement("a");
 	navLink.href = `#${id}`;
 	navLink.dataset.noteCategory = category;
+	navLink.dataset.dynamicSection = "";
 	navLink.className = "btn-regular rounded-lg px-3 py-2 text-sm font-medium";
 	navLink.append(document.createTextNode(category));
 	const navCount = document.createElement("span");
@@ -76,11 +79,21 @@ function createCategorySection(category: string, index: number) {
 
 export function initNotesIndex() {
 	const total = document.querySelector<HTMLElement>("#notes-total-count");
-	if (!total || initializedIndexes.has(total)) return;
-	initializedIndexes.add(total);
+	if (!total || runningIndexes.has(total)) return;
+	runningIndexes.add(total);
 	void (async () => {
 		try {
 			const { notes, deletedStaticNotes } = await getPublishedNoteData();
+			for (const dynamicNote of document.querySelectorAll(
+				"[data-dynamic-note-key]",
+			)) {
+				dynamicNote.remove();
+			}
+			for (const dynamicSection of document.querySelectorAll(
+				"[data-dynamic-section]",
+			)) {
+				dynamicSection.remove();
+			}
 			const deletedKeys = new Set(
 				deletedStaticNotes.map((note) => note.note_key),
 			);
@@ -130,8 +143,10 @@ export function initNotesIndex() {
 					".note-category-nav-count",
 				);
 				if (navCount) navCount.textContent = String(count);
-				section.classList.toggle("hidden", count === 0);
-				nav?.classList.toggle("hidden", count === 0);
+				if (count === 0) {
+					section.remove();
+					nav?.remove();
+				}
 			}
 			const visibleStaticCount = document.querySelectorAll(
 				".note-category-list [data-static-note-key]",
@@ -146,6 +161,8 @@ export function initNotesIndex() {
 					error instanceof Error ? error.message : "在线笔记读取失败。";
 				message.classList.remove("hidden");
 			}
+		} finally {
+			runningIndexes.delete(total);
 		}
 	})();
 }
