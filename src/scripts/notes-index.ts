@@ -9,9 +9,94 @@ function categoryKey(value: string) {
 	return value.trim().toLocaleLowerCase("zh-CN");
 }
 
+function selectedValues(params: URLSearchParams, name: string) {
+	return params
+		.getAll(name)
+		.map((value) => value.trim())
+		.filter(Boolean);
+}
+
+function noteTags(link: HTMLElement) {
+	try {
+		const tags = JSON.parse(link.dataset.noteTags || "[]");
+		return Array.isArray(tags) ? tags.map((tag) => categoryKey(String(tag))) : [];
+	} catch {
+		return [];
+	}
+}
+
+function applyNoteFilter(root: HTMLElement, total: HTMLElement) {
+	const params = new URLSearchParams(window.location.search);
+	const categories = selectedValues(params, "category");
+	const tags = selectedValues(params, "tag");
+	const categoryKeys = new Set(categories.map(categoryKey));
+	const tagKeys = new Set(tags.map(categoryKey));
+	const uncategorized = params.get("uncategorized") === "true";
+	const active = categoryKeys.size > 0 || tagKeys.size > 0 || uncategorized;
+	let visibleTotal = 0;
+
+	for (const section of root.querySelectorAll<HTMLElement>(
+		".note-category-section[data-note-category]",
+	)) {
+		let visibleInSection = 0;
+		for (const link of section.querySelectorAll<HTMLElement>(
+			"[data-static-note-key], [data-dynamic-note-key]",
+		)) {
+			const noteCategory = categoryKey(link.dataset.noteCategory || "");
+			const tagsForNote = noteTags(link);
+			const categoryMatches =
+				categoryKeys.size === 0 || categoryKeys.has(noteCategory);
+			const uncategorizedMatches = !uncategorized || !noteCategory;
+			const tagMatches =
+				tagKeys.size === 0 || tagsForNote.some((tag) => tagKeys.has(tag));
+			const visible = categoryMatches && uncategorizedMatches && tagMatches;
+			link.classList.toggle("hidden", !visible);
+			if (visible) visibleInSection += 1;
+		}
+		section.classList.toggle("hidden", visibleInSection === 0);
+		const count = section.querySelector<HTMLElement>(".note-category-count");
+		if (count) {
+			count.textContent = `${visibleInSection} ${visibleInSection === 1 ? "note" : "notes"}`;
+		}
+		const sectionKey = categoryKey(section.dataset.noteCategory || "");
+		const navigation = Array.from(
+			root.querySelectorAll<HTMLElement>(
+				"#notes-category-nav [data-note-category]",
+			),
+		).find(
+			(item) => categoryKey(item.dataset.noteCategory || "") === sectionKey,
+		);
+		navigation?.classList.toggle("hidden", visibleInSection === 0);
+		const navigationCount = navigation?.querySelector<HTMLElement>(
+			".note-category-nav-count",
+		);
+		if (navigationCount) navigationCount.textContent = String(visibleInSection);
+		visibleTotal += visibleInSection;
+	}
+
+	total.textContent = `${visibleTotal} ${visibleTotal === 1 ? "note" : "notes"}`;
+	const filter = root.querySelector<HTMLElement>("#notes-active-filter");
+	const filterLabel = root.querySelector<HTMLElement>(
+		"#notes-active-filter-label",
+	);
+	const parts = [
+		...categories.map((category) => `Category: ${category}`),
+		...tags.map((tag) => `Tag: ${tag}`),
+		...(uncategorized ? ["Category: Uncategorized"] : []),
+	];
+	if (filterLabel) filterLabel.textContent = parts.join(" · ");
+	filter?.classList.toggle("hidden", !active);
+	filter?.classList.toggle("flex", active);
+	root
+		.querySelector<HTMLElement>("#notes-empty-filter")
+		?.classList.toggle("hidden", !active || visibleTotal > 0);
+}
+
 function createNoteLink(note: PublishedNoteSummary) {
 	const link = document.createElement("a");
 	link.dataset.dynamicNoteKey = note.slug;
+	link.dataset.noteCategory = note.category;
+	link.dataset.noteTags = JSON.stringify(note.tags);
 	link.href = `/notes/read/?slug=${encodeURIComponent(note.slug)}`;
 	link.className =
 		"group flex items-center justify-between gap-4 rounded-md py-3.5 transition-all hover:bg-[var(--btn-plain-bg-hover)] hover:px-3";
@@ -148,11 +233,7 @@ export function initNotesIndex() {
 					nav?.remove();
 				}
 			}
-			const visibleStaticCount = document.querySelectorAll(
-				".note-category-list [data-static-note-key]",
-			).length;
-			const totalCount = visibleStaticCount + notes.length;
-			total.textContent = `${totalCount} ${totalCount === 1 ? "note" : "notes"}`;
+			applyNoteFilter(total.parentElement?.closest("main") || document.body, total);
 		} catch (error) {
 			const message = document.querySelector<HTMLElement>(
 				"#dynamic-notes-error",

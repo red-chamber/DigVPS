@@ -60,6 +60,10 @@ function directoryLabel(sourcePath: string) {
 				</a>
 			))}
 		</nav>
+		<div id="notes-active-filter" class="mt-5 hidden items-center justify-between gap-3 rounded-lg border border-[var(--line-color)] bg-white/40 px-4 py-3 text-sm text-black/60">
+			<span id="notes-active-filter-label"></span>
+			<a href="/notes/" class="shrink-0 font-bold text-[var(--primary)] hover:underline">Show all notes</a>
+		</div>
 	</div>
 
 	{sections.map((section) => (
@@ -72,7 +76,7 @@ function directoryLabel(sourcePath: string) {
 				{section.notes.map((note) => {
 					const directory = directoryLabel(note.data.sourcePath);
 					return (
-						<a href={getPostUrlBySlug(note.slug)} data-static-note-key={`static:${note.slug}`} class="group flex items-center justify-between gap-4 py-3.5 rounded-md hover:px-3 hover:bg-[var(--btn-plain-bg-hover)] transition-all">
+						<a href={getPostUrlBySlug(note.slug)} data-static-note-key={`static:${note.slug}`} data-note-category={note.data.category || ""} data-note-tags={JSON.stringify(note.data.tags)} class="group flex items-center justify-between gap-4 py-3.5 rounded-md hover:px-3 hover:bg-[var(--btn-plain-bg-hover)] transition-all">
 							<div class="min-w-0">
 								<div class="font-medium text-base text-black/75 dark:text-white/75 group-hover:text-[var(--primary)] transition-colors">
 									{note.data.title}
@@ -87,5 +91,6 @@ function directoryLabel(sourcePath: string) {
 		</section>
 	))}
 
+	<p id="notes-empty-filter" class="card-base mb-4 hidden px-6 py-5 text-center text-black/50">No notes match this filter.</p>
 	<p id="dynamic-notes-error" class="card-base mb-4 hidden px-6 py-5 text-red-700"></p>
 </MainGridLayout>

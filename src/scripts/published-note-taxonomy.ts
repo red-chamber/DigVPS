@@ -9,7 +9,7 @@ function normalized(value: string) {
 
 function createCategoryLink(name: string, count: number) {
 	const link = document.createElement("a");
-	link.href = `/archive/?category=${encodeURIComponent(name)}`;
+	link.href = `/notes/?category=${encodeURIComponent(name)}`;
 	link.dataset.categoryName = name;
 	link.setAttribute("aria-label", `View all notes in the ${name} category`);
 	const button = document.createElement("button");
@@ -36,7 +36,7 @@ function createCategoryLink(name: string, count: number) {
 
 function createTagLink(name: string) {
 	const link = document.createElement("a");
-	link.href = `/archive/?tag=${encodeURIComponent(name)}`;
+	link.href = `/notes/?tag=${encodeURIComponent(name)}`;
 	link.dataset.tagName = name;
 	link.setAttribute("aria-label", `View all notes tagged ${name}`);
 	link.className = "btn-regular h-8 rounded-lg px-3 text-sm";
