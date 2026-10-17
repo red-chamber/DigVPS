@@ -146,12 +146,26 @@ async function runMiddleware({ url, headers = {}, env = {}, row = null }) {
 }
 
 const legacyDenied = await authMiddleware({
-	request: new Request("https://digvps.pages.dev/"),
+	request: new Request("https://cedrian.cn/"),
 	env: {},
 	data: {},
 	next: async () => new Response("OK"),
 });
 assert.equal(legacyDenied.status, 401);
+
+for (const alias of ["digvps.pages.dev", "www.cedrian.cn"]) {
+	const redirect = await authMiddleware({
+		request: new Request(`https://${alias}/notes/?tag=Linux`),
+		env: {},
+		data: {},
+		next: async () => new Response("OK"),
+	});
+	assert.equal(redirect.status, 308);
+	assert.equal(
+		redirect.headers.get("Location"),
+		"https://cedrian.cn/notes/?tag=Linux",
+	);
+}
 
 const configuredEnv = {
 	AUTH_SECRET: "test-secret-that-is-long-enough",
@@ -159,13 +173,13 @@ const configuredEnv = {
 };
 
 const publicLogin = await runMiddleware({
-	url: "https://digvps.pages.dev/login/",
+	url: "https://cedrian.cn/login/",
 	env: configuredEnv,
 });
 assert.equal(publicLogin.status, 200);
 
 const protectedPage = await runMiddleware({
-	url: "https://digvps.pages.dev/notes/?page=1",
+	url: "https://cedrian.cn/notes/?page=1",
 	env: configuredEnv,
 });
 assert.equal(protectedPage.status, 302);
@@ -175,13 +189,13 @@ assert.equal(
 );
 
 const protectedApi = await runMiddleware({
-	url: "https://digvps.pages.dev/api/auth/me",
+	url: "https://cedrian.cn/api/auth/me",
 	env: configuredEnv,
 });
 assert.equal(protectedApi.status, 401);
 
 const validSession = await runMiddleware({
-	url: "https://digvps.pages.dev/",
+	url: "https://cedrian.cn/",
 	headers: { Cookie: "digvps_session=test-token" },
 	env: configuredEnv,
 	row: {
@@ -217,7 +231,7 @@ const noPageViewDb = {
 	},
 };
 await runMiddleware({
-	url: "https://digvps.pages.dev/notes/",
+	url: "https://cedrian.cn/notes/",
 	headers: { Cookie: "digvps_session=test-token" },
 	env: { ...configuredEnv, DB: noPageViewDb },
 });
@@ -228,7 +242,7 @@ assert.equal(
 );
 
 const retiredWallpaper = await runMiddleware({
-	url: "https://digvps.pages.dev/background/valley.jpg",
+	url: "https://cedrian.cn/background/valley.jpg",
 	env: configuredEnv,
 });
 assert.equal(retiredWallpaper.status, 404);

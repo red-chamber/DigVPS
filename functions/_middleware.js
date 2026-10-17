@@ -9,6 +9,8 @@ import {
 const LEGACY_USERNAME = "root";
 const LEGACY_PASSWORD_SHA256 = "b3rBgj2oHS5S0aFUnuachbv4u1bQZoKEnnwJ2ieFzjs";
 const RETIRED_WALLPAPER_PATH = "/background/valley.jpg";
+const CANONICAL_HOST = "cedrian.cn";
+const DOMAIN_ALIASES = new Set(["www.cedrian.cn", "digvps.pages.dev"]);
 
 const PUBLIC_PAGES = new Set(["/login", "/register"]);
 const PUBLIC_AUTH_APIS = new Set([
@@ -86,9 +88,15 @@ function loginRedirect(url) {
 
 export const onRequest = async (context) => {
 	const { request, env, next } = context;
+	const url = new URL(request.url);
+	if (DOMAIN_ALIASES.has(url.hostname)) {
+		url.protocol = "https:";
+		url.hostname = CANONICAL_HOST;
+		url.port = "";
+		return Response.redirect(url, 308);
+	}
 	if (!authIsConfigured(env)) return legacyBasicAuth(request, next);
 
-	const url = new URL(request.url);
 	const pathname = normalizePath(url.pathname);
 	if (url.pathname === RETIRED_WALLPAPER_PATH) {
 		return new Response("Not found.", {
