@@ -35,7 +35,7 @@ function legacyUnauthorized() {
 		headers: {
 			"Cache-Control": "no-store",
 			"Content-Type": "text/plain; charset=UTF-8",
-			"WWW-Authenticate": 'Basic realm="RC Domain", charset="UTF-8"',
+			"WWW-Authenticate": 'Basic realm="Cedrian Ian", charset="UTF-8"',
 		},
 	});
 }

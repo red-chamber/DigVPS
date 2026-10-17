@@ -312,6 +312,10 @@ function renderAdminTimeline(root: HTMLElement, events: AdminTimelineEvent[]) {
 	for (const event of events) {
 		const article = document.createElement("article");
 		article.dataset.timelineEventId = event.id;
+		article.dataset.deletesNote = String(
+			event.available &&
+				(event.source === "static" || event.source === "dynamic"),
+		);
 		article.className =
 			"flex flex-col gap-3 rounded-xl border border-[var(--line-color)] bg-white/45 px-4 py-3 sm:flex-row sm:items-center sm:justify-between";
 		const body = document.createElement("div");
@@ -334,7 +338,8 @@ function renderAdminTimeline(root: HTMLElement, events: AdminTimelineEvent[]) {
 		remove.dataset.deleteTimelineEvent = "";
 		remove.className =
 			"shrink-0 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-bold text-red-700 transition hover:bg-red-100";
-		remove.textContent = "删除";
+		remove.textContent =
+			article.dataset.deletesNote === "true" ? "删除笔记及记录" : "删除记录";
 		article.append(body, remove);
 		list.append(article);
 	}
@@ -563,7 +568,11 @@ function bindAdminTools(root: HTMLElement) {
 		const eventId = article?.dataset.timelineEventId;
 		const title = article?.querySelector("p")?.textContent?.trim() || "这条活动";
 		if (!eventId) return;
-		if (!window.confirm(`确定从公开时间线删除“${title}”吗？这不会删除对应笔记。`)) {
+		const deletesNote = article.dataset.deletesNote === "true";
+		const confirmation = deletesNote
+			? `确定删除“${title}”吗？对应笔记也会被删除。`
+			: `确定从公开时间线删除“${title}”吗？`;
+		if (!window.confirm(confirmation)) {
 			return;
 		}
 		button.disabled = true;
@@ -576,12 +585,18 @@ function bindAdminTools(root: HTMLElement) {
 			});
 			const result = await response.json();
 			if (!response.ok) throw new Error(result.error || "公开活动删除失败。");
-			article.remove();
-			if (!timelinePanel.querySelector("[data-timeline-event-id]")) {
-				renderAdminTimeline(root, []);
-			}
 			invalidateTimelineData();
-			setAdminMessage(timelineMessage, "该活动已从公开时间线删除。");
+			if (result.noteDeleted) {
+				invalidatePublishedNotes();
+				void loadAdminNotes(root);
+			}
+			await loadAdminTimeline(root);
+			setAdminMessage(
+				timelineMessage,
+				result.noteDeleted
+					? `“${result.noteTitle || title}”及所选时间线记录已删除。`
+					: "该活动已从公开时间线删除。",
+			);
 			void loadAdminActivity(root);
 		} catch (error) {
 			setAdminMessage(

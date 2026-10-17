@@ -68,3 +68,36 @@ export function publicNotePath(resolved) {
 		? `/notes/read/?slug=${encodeURIComponent(resolved.slug)}`
 		: `/posts/${resolved.slug}/`;
 }
+
+export function prepareNoteDeletion(db, resolved, deletedBy, deletedAt) {
+	const statement =
+		resolved.type === "dynamic"
+			? db
+					.prepare(
+						"UPDATE published_notes SET status = 'archived' WHERE slug = ?1 AND status = 'published'",
+					)
+					.bind(resolved.slug)
+			: db
+					.prepare(
+						`INSERT INTO deleted_static_notes
+						 (note_key, title, category, tags_json, deleted_by, deleted_at)
+						 VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+						 ON CONFLICT(note_key) DO NOTHING`,
+					)
+					.bind(
+						resolved.key,
+						resolved.metadata.title,
+						resolved.metadata.category,
+						JSON.stringify(resolved.metadata.tags),
+						deletedBy,
+						deletedAt,
+					);
+	return {
+		statement,
+		title:
+			resolved.type === "dynamic"
+				? resolved.note.title
+				: resolved.metadata.title,
+		path: publicNotePath(resolved),
+	};
+}

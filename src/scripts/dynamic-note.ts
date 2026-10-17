@@ -46,7 +46,7 @@ export function initDynamicNote() {
 				meta.textContent = `${new Date(note.published_at * 1000).toLocaleString("zh-CN")} · ${(note.tags || []).join(" · ")}`;
 			}
 			if (content) content.innerHTML = note.rendered_html;
-			document.title = `${note.title} - RC Domain`;
+			document.title = `${note.title} - Cedrian Ian`;
 			const interactions =
 				wrapper.querySelector<HTMLElement>(".note-interactions");
 			if (interactions) interactions.dataset.noteKey = `dynamic:${note.slug}`;

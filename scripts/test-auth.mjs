@@ -4,6 +4,7 @@ import { onRequestGet as adminActivity } from "../functions/api/admin/activity.j
 import { onRequestPost as moderateComment } from "../functions/api/admin/comments.js";
 import { onRequestPost as publishNote } from "../functions/api/admin/notes.js";
 import {
+	onRequestDelete as deleteTimelineEvent,
 	onRequestPost as publishTimelineEvent,
 } from "../functions/api/admin/timeline.js";
 import { onRequestPost as submitComment } from "../functions/api/note-comments.js";
@@ -21,6 +22,7 @@ import {
 import {
 	renderMarkdown,
 	resolvePublishedNote,
+	prepareNoteDeletion,
 	unicodeLength,
 } from "../server/notes.js";
 
@@ -47,6 +49,28 @@ assert.equal(
 	"static",
 );
 assert.equal(await resolvePublishedNote({}, "static:notes/not-real"), null);
+const staticResolvedNote = await resolvePublishedNote(
+	{},
+	"static:notes/linux/全局",
+);
+const staticDeletion = prepareNoteDeletion(
+	{
+		prepare(sql) {
+			return {
+				sql,
+				bind(...values) {
+					this.values = values;
+					return this;
+				},
+			};
+		},
+	},
+	staticResolvedNote,
+	"admin-1",
+	1_000,
+);
+assert.match(staticDeletion.statement.sql, /INSERT INTO deleted_static_notes/u);
+assert.equal(staticDeletion.statement.values[0], "static:notes/linux/全局");
 
 const session = await createSessionRecord("user-1", 1_000);
 assert.equal(session.expiresAt, 1_000 + SESSION_TTL_SECONDS);
@@ -307,6 +331,71 @@ assert.equal(adminTimelineBody.event.title, "测试公开活动");
 assert.ok(adminTimelineBody.event.createdAt >= beforeTimelinePublish);
 assert.match(timelineSql[0], /INSERT INTO public_timeline_events/u);
 assert.equal(timelineBindings[0][1], "测试公开活动");
+
+const timelineMutationBatches = [];
+const dynamicTimelineRow = {
+	slug: "test-note",
+	title: "待删除笔记",
+	description: "测试",
+	category: "Test",
+	tags_json: "[]",
+	rendered_html: "<p>测试</p>",
+	published_at: 100,
+	updated_at: 100,
+	status: "published",
+};
+const timelineDeleteDb = {
+	prepare(sql) {
+		return {
+			sql,
+			bind(...values) {
+				this.values = values;
+				return this;
+			},
+			async first() {
+				return this.sql.includes("FROM published_notes")
+					? dynamicTimelineRow
+					: null;
+			},
+			async run() {
+				return { success: true, meta: { changes: 1 } };
+			},
+		};
+	},
+	async batch(statements) {
+		if (statements.length === 4) {
+			return [
+				{ results: [dynamicTimelineRow] },
+				{ results: [] },
+				{ results: [] },
+				{ results: [] },
+			];
+		}
+		timelineMutationBatches.push(statements);
+		return statements.map(() => ({ success: true, meta: { changes: 1 } }));
+	},
+};
+const adminTimelineDelete = await deleteTimelineEvent({
+	request: new Request("https://digvps.pages.dev/api/admin/timeline", {
+		method: "DELETE",
+		headers: {
+			Origin: "https://digvps.pages.dev",
+			"Content-Type": "application/json",
+		},
+		body: JSON.stringify({
+			eventId: "dynamic:test-note:published:100",
+		}),
+	}),
+	data: { user: { id: "admin-1", role: "admin" } },
+	env: { DB: timelineDeleteDb },
+});
+assert.equal(adminTimelineDelete.status, 200);
+const adminTimelineDeleteBody = await adminTimelineDelete.json();
+assert.equal(adminTimelineDeleteBody.noteDeleted, true);
+assert.equal(adminTimelineDeleteBody.noteTitle, "待删除笔记");
+assert.equal(timelineMutationBatches.length, 1);
+assert.match(timelineMutationBatches[0][0].sql, /UPDATE published_notes/u);
+assert.match(timelineMutationBatches[0][1].sql, /hidden_timeline_events/u);
 
 const regularModeration = await moderateComment({
 	request: new Request("https://digvps.pages.dev/api/admin/comments", {

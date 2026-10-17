@@ -7,8 +7,9 @@ import {
 } from "../../../server/auth.js";
 import {
 	normalizeSlug,
-	publicNotePath,
+	prepareNoteDeletion,
 	renderMarkdown,
+	resolvePublishedNote,
 	validPublishedNoteSlug,
 } from "../../../server/notes.js";
 import { STATIC_NOTES } from "../../../server/static-notes.js";
@@ -89,60 +90,33 @@ export async function onRequestDelete(context) {
 	}
 	const noteKey = String(body.noteKey || "");
 	const now = Math.floor(Date.now() / 1000);
-	let title;
-	let path;
 	try {
 		if (noteKey.startsWith("dynamic:")) {
 			const slug = noteKey.slice("dynamic:".length);
 			if (!validPublishedNoteSlug(slug)) {
 				return json({ error: "笔记标识无效。" }, 400);
 			}
-			const note = await context.env.DB.prepare(
-				"SELECT title FROM published_notes WHERE slug = ?1 AND status = 'published'",
-			)
-				.bind(slug)
-				.first();
-			if (!note) return json({ error: "笔记不存在或已删除。" }, 404);
-			await context.env.DB.prepare(
-				"UPDATE published_notes SET status = 'archived' WHERE slug = ?1 AND status = 'published'",
-			)
-				.bind(slug)
-				.run();
-			title = note.title;
-			path = publicNotePath({ type: "dynamic", slug });
-		} else if (noteKey.startsWith("static:")) {
-			const slug = noteKey.slice("static:".length);
-			const metadata = STATIC_NOTES.get(slug);
-			if (!metadata) return json({ error: "笔记不存在。" }, 404);
-			const result = await context.env.DB.prepare(
-				`INSERT INTO deleted_static_notes
-				 (note_key, title, category, tags_json, deleted_by, deleted_at)
-				 VALUES (?1, ?2, ?3, ?4, ?5, ?6)
-				 ON CONFLICT(note_key) DO NOTHING`,
-			)
-				.bind(
-					noteKey,
-					metadata.title,
-					metadata.category,
-					JSON.stringify(metadata.tags),
-					context.data.user.id,
-					now,
-				)
-				.run();
-			if (result.meta?.changes === 0) {
-				return json({ error: "笔记不存在或已删除。" }, 404);
-			}
-			title = metadata.title;
-			path = publicNotePath({ type: "static", slug });
-		} else {
+		} else if (!noteKey.startsWith("static:")) {
 			return json({ error: "笔记标识无效。" }, 400);
+		}
+		const resolved = await resolvePublishedNote(context.env.DB, noteKey);
+		if (!resolved) return json({ error: "笔记不存在或已删除。" }, 404);
+		const deletion = prepareNoteDeletion(
+			context.env.DB,
+			resolved,
+			context.data.user.id,
+			now,
+		);
+		const result = await deletion.statement.run();
+		if (result.meta?.changes === 0) {
+			return json({ error: "笔记不存在或已删除。" }, 404);
 		}
 		await recordActivity(context, {
 			userId: context.data.user.id,
 			eventType: "note_deleted",
-			path,
+			path: deletion.path,
 		});
-		return json({ ok: true, noteKey, title });
+		return json({ ok: true, noteKey, title: deletion.title });
 	} catch (error) {
 		console.error("Note deletion failed:", error.message);
 		return json({ error: "笔记删除失败，请稍后重试。" }, 500);

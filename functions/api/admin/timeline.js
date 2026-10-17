@@ -5,6 +5,10 @@ import {
 	recordActivity,
 	requestHasSameOrigin,
 } from "../../../server/auth.js";
+import {
+	prepareNoteDeletion,
+	resolvePublishedNote,
+} from "../../../server/notes.js";
 import { loadTimelineData } from "../../../server/timeline.js";
 
 function requireAdmin(context) {
@@ -83,10 +87,28 @@ export async function onRequestDelete(context) {
 	}
 	try {
 		const { events } = await loadTimelineData(context.env.DB);
-		if (!events.some((event) => event.id === eventId)) {
+		const event = events.find((candidate) => candidate.id === eventId);
+		if (!event) {
 			return json({ error: "时间线活动不存在或已删除。" }, 404);
 		}
 		const now = Math.floor(Date.now() / 1000);
+		let noteDeletion = null;
+		if (
+			event.available &&
+			(event.source === "static" || event.source === "dynamic")
+		) {
+			const noteKey = `${event.source}:${event.slug}`;
+			const resolved = await resolvePublishedNote(context.env.DB, noteKey);
+			if (!resolved) {
+				return json({ error: "对应笔记不存在或已删除。" }, 404);
+			}
+			noteDeletion = prepareNoteDeletion(
+				context.env.DB,
+				resolved,
+				context.data.user.id,
+				now,
+			);
+		}
 		if (eventId.startsWith("custom:")) {
 			await context.env.DB.prepare(
 				`UPDATE public_timeline_events
@@ -96,19 +118,35 @@ export async function onRequestDelete(context) {
 				.bind(eventId)
 				.run();
 		} else {
-			await context.env.DB.prepare(
+			const hideStatement = context.env.DB.prepare(
 				`INSERT INTO hidden_timeline_events (event_id, deleted_by, deleted_at)
 				 VALUES (?1, ?2, ?3)`,
 			)
-				.bind(eventId, context.data.user.id, now)
-				.run();
+				.bind(eventId, context.data.user.id, now);
+			if (noteDeletion) {
+				await context.env.DB.batch([noteDeletion.statement, hideStatement]);
+			} else {
+				await hideStatement.run();
+			}
+		}
+		if (noteDeletion) {
+			await recordActivity(context, {
+				userId: context.data.user.id,
+				eventType: "note_deleted",
+				path: noteDeletion.path,
+			});
 		}
 		await recordActivity(context, {
 			userId: context.data.user.id,
 			eventType: "timeline_event_deleted",
 			path: "/archive/",
 		});
-		return json({ ok: true, eventId });
+		return json({
+			ok: true,
+			eventId,
+			noteDeleted: Boolean(noteDeletion),
+			noteTitle: noteDeletion?.title || null,
+		});
 	} catch (error) {
 		console.error("Timeline event deletion failed:", error.message);
 		return json({ error: "时间线活动删除失败，请稍后重试。" }, 500);

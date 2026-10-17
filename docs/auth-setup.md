@@ -1,4 +1,4 @@
-# RC Domain 用户注册系统配置
+# Cedrian Ian 用户注册系统配置
 
 站点使用 Cloudflare Pages Functions、D1 和 Brevo 邮件 API。只有当 `DB`、`AUTH_SECRET` 和 `BREVO_API_KEY` 都存在时，新登录系统才会启用；否则继续使用原有 HTTP Basic Auth。
 
