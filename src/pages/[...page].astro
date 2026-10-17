@@ -1,23 +1,25 @@
 ---
-import type { GetStaticPaths } from "astro";
-import Pagination from "../components/control/Pagination.astro";
-import PostPage from "../components/PostPage.astro";
-import { PAGE_SIZE } from "../constants/constants";
+import { getEntry, render } from "astro:content";
+import Markdown from "../components/misc/Markdown.astro";
 import MainGridLayout from "../layouts/MainGridLayout.astro";
-import { getSortedPosts } from "../utils/content-utils";
 
-export const getStaticPaths = (async ({ paginate }) => {
-	const allBlogPosts = await getSortedPosts();
-	return paginate(allBlogPosts, { pageSize: PAGE_SIZE });
-}) satisfies GetStaticPaths;
-// https://github.com/withastro/astro/issues/6507#issuecomment-1489916992
+export function getStaticPaths() {
+	return [{ params: { page: undefined } }];
+}
 
-const { page } = Astro.props;
+const homeGuide = await getEntry("spec", "home");
 
-const len = page.data.length;
+if (!homeGuide) {
+	throw new Error("Home guide content not found");
+}
+
+const { Content } = await render(homeGuide);
 ---
 
-<MainGridLayout>
-    <PostPage page={page}></PostPage>
-    <Pagination class="mx-auto onload-animation" page={page} style={`animation-delay: calc(var(--content-delay) + ${(len)*50}ms)`}></Pagination>
+<MainGridLayout title="Entry Protocol" description="A guide to Cedrian Ian's archive.">
+    <article class="card-base w-full rounded-[var(--radius-large)] px-6 py-8 md:px-9 md:py-9">
+        <Markdown class="markdown-content onload-animation">
+            <Content />
+        </Markdown>
+    </article>
 </MainGridLayout>
