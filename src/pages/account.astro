@@ -36,13 +36,27 @@ import MainGridLayout from "../layouts/MainGridLayout.astro";
 		</div>
 	</section>
 
-	<section id="admin-publish-panel" class="card-base mt-6 hidden px-6 py-7 md:px-9 md:py-8">
-		<div class="mb-5">
-			<p class="text-sm font-medium text-[var(--primary)]">ADMIN</p>
-			<h2 class="font-serif text-2xl font-bold text-black/90">发布笔记</h2>
-			<p class="mt-1 text-sm text-black/50">正文使用 Markdown；发布后立即出现在“学习笔记”的在线发布区域</p>
+	<nav id="admin-section-nav" aria-label="管理员功能目录" class="card-base mt-6 hidden px-6 py-5 md:px-9">
+		<p class="mb-3 text-sm font-medium text-black/50">管理员目录</p>
+		<div class="flex flex-wrap gap-2">
+			<a href="#admin-publish-panel" class="btn-regular rounded-lg px-3 py-2 text-sm font-medium">发布笔记</a>
+			<a href="#admin-timeline-panel" class="btn-regular rounded-lg px-3 py-2 text-sm font-medium">公开时间线</a>
+			<a href="#admin-notes-panel" class="btn-regular rounded-lg px-3 py-2 text-sm font-medium">站内笔记</a>
+			<a href="#admin-comments-panel" class="btn-regular rounded-lg px-3 py-2 text-sm font-medium">评论审核</a>
+			<a href="#admin-activity-panel" class="btn-regular rounded-lg px-3 py-2 text-sm font-medium">用户活动</a>
 		</div>
-		<form id="admin-note-form" class="space-y-4">
+	</nav>
+
+	<section id="admin-publish-panel" data-admin-section class="card-base mt-6 hidden scroll-mt-24 px-6 py-7 md:px-9 md:py-8">
+		<div class="mb-5 flex items-start justify-between gap-4">
+			<div>
+				<p class="text-sm font-medium text-[var(--primary)]">ADMIN</p>
+				<h2 class="font-serif text-2xl font-bold text-black/90">发布笔记</h2>
+				<p class="mt-1 text-sm text-black/50">正文使用 Markdown；发布后立即出现在“学习笔记”的在线发布区域</p>
+			</div>
+			<button type="button" data-admin-collapse aria-expanded="true" class="btn-regular shrink-0 rounded-lg px-3 py-2 text-sm font-bold">收起</button>
+		</div>
+		<form id="admin-note-form" data-admin-section-content class="space-y-4">
 			<div class="grid gap-4 md:grid-cols-2">
 				<label class="block text-sm font-medium text-black/70">
 					标题 <span class="text-red-600">*</span>
@@ -76,50 +90,91 @@ import MainGridLayout from "../layouts/MainGridLayout.astro";
 		</form>
 	</section>
 
-	<section id="admin-notes-panel" class="card-base mt-6 hidden px-6 py-7 md:px-9 md:py-8">
+	<section id="admin-timeline-panel" data-admin-section class="card-base mt-6 hidden scroll-mt-24 px-6 py-7 md:px-9 md:py-8">
+		<div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+			<div>
+				<p class="text-sm font-medium text-[var(--primary)]">ADMIN</p>
+				<h2 class="font-serif text-2xl font-bold text-black/90">公开时间线</h2>
+				<p class="mt-1 text-sm text-black/50">管理所有用户在“归档”页看到的活动；发布时间自动使用服务器当前时间</p>
+			</div>
+			<div class="flex gap-2">
+				<button id="admin-timeline-refresh" type="button" class="btn-regular rounded-lg px-4 py-2 text-sm font-bold">刷新</button>
+				<button type="button" data-admin-collapse aria-expanded="true" class="btn-regular rounded-lg px-3 py-2 text-sm font-bold">收起</button>
+			</div>
+		</div>
+		<div data-admin-section-content class="space-y-5">
+			<form id="admin-timeline-form" class="flex flex-col gap-3 sm:flex-row">
+				<label class="min-w-0 flex-1 text-sm font-medium text-black/70">
+					新活动内容 <span class="text-red-600">*</span>
+					<input id="admin-timeline-title" required maxlength="160" placeholder="例如：完成了网站公开时间线更新" class="mt-1.5 w-full rounded-lg border border-[var(--line-color)] bg-white/60 px-3 py-2.5 outline-none focus:border-[var(--primary)]" />
+				</label>
+				<button id="admin-timeline-submit" type="submit" class="btn-regular self-end rounded-lg px-5 py-2.5 font-bold">发布活动</button>
+			</form>
+			<p id="admin-timeline-message" class="hidden rounded-lg px-4 py-3 text-sm" role="status"></p>
+			<div id="admin-timeline-list" class="space-y-2">
+				<p class="rounded-lg bg-[var(--btn-regular-bg)] px-4 py-4 text-black/55">正在读取公开时间线……</p>
+			</div>
+		</div>
+	</section>
+
+	<section id="admin-notes-panel" data-admin-section class="card-base mt-6 hidden scroll-mt-24 px-6 py-7 md:px-9 md:py-8">
 		<div class="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
 			<div>
 				<p class="text-sm font-medium text-[var(--primary)]">ADMIN</p>
 				<h2 class="font-serif text-2xl font-bold text-black/90">站内所有笔记</h2>
 				<p class="mt-1 text-sm text-black/50">统一管理仓库笔记与在线发布笔记</p>
 			</div>
-			<button id="admin-notes-refresh" type="button" class="btn-regular rounded-lg px-4 py-2 text-sm font-bold">刷新</button>
+			<div class="flex gap-2">
+				<button id="admin-notes-refresh" type="button" class="btn-regular rounded-lg px-4 py-2 text-sm font-bold">刷新</button>
+				<button type="button" data-admin-collapse aria-expanded="true" class="btn-regular rounded-lg px-3 py-2 text-sm font-bold">收起</button>
+			</div>
 		</div>
-		<p id="admin-notes-message" class="hidden rounded-lg px-4 py-3 text-sm" role="status"></p>
-		<div id="admin-notes-list" class="space-y-2">
-			<p class="rounded-lg bg-[var(--btn-regular-bg)] px-4 py-4 text-black/55">正在读取笔记……</p>
+		<div data-admin-section-content>
+			<p id="admin-notes-message" class="hidden rounded-lg px-4 py-3 text-sm" role="status"></p>
+			<div id="admin-notes-list" class="space-y-2">
+				<p class="rounded-lg bg-[var(--btn-regular-bg)] px-4 py-4 text-black/55">正在读取笔记……</p>
+			</div>
 		</div>
 	</section>
 
-	<section id="admin-comments-panel" class="card-base mt-6 hidden px-6 py-7 md:px-9 md:py-8">
+	<section id="admin-comments-panel" data-admin-section class="card-base mt-6 hidden scroll-mt-24 px-6 py-7 md:px-9 md:py-8">
 		<div class="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
 			<div>
 				<p class="text-sm font-medium text-[var(--primary)]">ADMIN</p>
 				<h2 class="font-serif text-2xl font-bold text-black/90">评论审核</h2>
 				<p class="mt-1 text-sm text-black/50">接纳后公开显示；驳回后不会出现在笔记下方</p>
 			</div>
-			<button id="admin-comments-refresh" type="button" class="btn-regular rounded-lg px-4 py-2 text-sm font-bold">刷新</button>
+			<div class="flex gap-2">
+				<button id="admin-comments-refresh" type="button" class="btn-regular rounded-lg px-4 py-2 text-sm font-bold">刷新</button>
+				<button type="button" data-admin-collapse aria-expanded="true" class="btn-regular rounded-lg px-3 py-2 text-sm font-bold">收起</button>
+			</div>
 		</div>
-		<p id="admin-comments-message" class="hidden rounded-lg px-4 py-3 text-sm" role="status"></p>
-		<div id="admin-comments-list" class="space-y-3">
-			<p class="rounded-lg bg-[var(--btn-regular-bg)] px-4 py-4 text-black/55">正在读取待审核评论……</p>
+		<div data-admin-section-content>
+			<p id="admin-comments-message" class="hidden rounded-lg px-4 py-3 text-sm" role="status"></p>
+			<div id="admin-comments-list" class="space-y-3">
+				<p class="rounded-lg bg-[var(--btn-regular-bg)] px-4 py-4 text-black/55">正在读取待审核评论……</p>
+			</div>
 		</div>
 	</section>
 
-	<section id="admin-activity-panel" class="card-base mt-6 hidden px-6 py-7 md:px-9 md:py-8">
+	<section id="admin-activity-panel" data-admin-section class="card-base mt-6 hidden scroll-mt-24 px-6 py-7 md:px-9 md:py-8">
 		<div class="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
 			<div>
 				<p class="text-sm font-medium text-[var(--primary)]">ADMIN</p>
 				<h2 class="font-serif text-2xl font-bold text-black/90">用户活动</h2>
 				<p class="mt-1 text-sm text-black/50">查看账户以及登录、评论、点赞和发布等重要事件</p>
 			</div>
-			<button id="admin-activity-refresh" type="button" class="btn-regular rounded-lg px-4 py-2 text-sm font-bold">刷新</button>
+			<div class="flex gap-2">
+				<button id="admin-activity-refresh" type="button" class="btn-regular rounded-lg px-4 py-2 text-sm font-bold">刷新</button>
+				<button type="button" data-admin-collapse aria-expanded="true" class="btn-regular rounded-lg px-3 py-2 text-sm font-bold">收起</button>
+			</div>
 		</div>
 
-		<div id="admin-activity-loading" class="rounded-lg bg-[var(--btn-regular-bg)] px-4 py-4 text-black/55">正在读取用户活动……</div>
-		<p id="admin-activity-message" class="hidden rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert"></p>
+		<div data-admin-section-content>
+			<div id="admin-activity-loading" class="rounded-lg bg-[var(--btn-regular-bg)] px-4 py-4 text-black/55">正在读取用户活动……</div>
+			<p id="admin-activity-message" class="hidden rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert"></p>
 
-		<div id="admin-activity-content" class="hidden space-y-7">
+			<div id="admin-activity-content" class="hidden space-y-7">
 			<div class="grid gap-3 sm:grid-cols-2">
 				<div class="rounded-lg border border-[var(--line-color)] bg-white/50 px-4 py-4">
 					<p class="text-xs text-black/45">用户总数</p>
@@ -165,6 +220,7 @@ import MainGridLayout from "../layouts/MainGridLayout.astro";
 					</table>
 				</div>
 				<button id="admin-activity-more" type="button" class="btn-regular mt-3 hidden w-full rounded-lg px-4 py-3 text-sm font-bold">加载更多</button>
+			</div>
 			</div>
 		</div>
 	</section>

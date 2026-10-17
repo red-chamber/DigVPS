@@ -1,4 +1,5 @@
 import { invalidatePublishedNotes } from "./published-notes";
+import { invalidateTimelineData } from "./timeline-data";
 
 const boundLogoutButtons = new WeakSet<HTMLButtonElement>();
 const boundAdminButtons = new WeakSet<HTMLButtonElement>();
@@ -55,6 +56,8 @@ const activityLabels: Record<string, string> = {
 	note_deleted: "删除笔记",
 	note_liked: "点赞笔记",
 	account_deleted: "注销账户",
+	timeline_event_published: "发布公开活动",
+	timeline_event_deleted: "删除公开活动",
 };
 
 function formatTimestamp(value?: number | null) {
@@ -278,6 +281,101 @@ interface AdminNote {
 	path: string;
 }
 
+interface AdminTimelineEvent {
+	id: string;
+	title: string;
+	date: number;
+	action: "published" | "updated" | "activity";
+	source: "static" | "dynamic" | "archived" | "custom";
+	available: boolean;
+}
+
+const timelineSourceLabels: Record<AdminTimelineEvent["source"], string> = {
+	static: "仓库笔记",
+	dynamic: "在线笔记",
+	archived: "历史笔记",
+	custom: "手动活动",
+};
+
+function renderAdminTimeline(root: HTMLElement, events: AdminTimelineEvent[]) {
+	const list = root.querySelector<HTMLElement>("#admin-timeline-list");
+	if (!list) return;
+	list.replaceChildren();
+	if (!events.length) {
+		const empty = document.createElement("p");
+		empty.className =
+			"rounded-lg bg-[var(--btn-regular-bg)] px-4 py-5 text-center text-black/50";
+		empty.textContent = "公开时间线暂无活动";
+		list.append(empty);
+		return;
+	}
+	for (const event of events) {
+		const article = document.createElement("article");
+		article.dataset.timelineEventId = event.id;
+		article.className =
+			"flex flex-col gap-3 rounded-xl border border-[var(--line-color)] bg-white/45 px-4 py-3 sm:flex-row sm:items-center sm:justify-between";
+		const body = document.createElement("div");
+		body.className = "min-w-0";
+		const title = document.createElement("p");
+		title.className = "break-words font-bold text-black/80";
+		title.textContent = event.title;
+		const meta = document.createElement("p");
+		meta.className = "mt-1 text-xs text-black/45";
+		const action =
+			event.action === "updated"
+				? "修改"
+				: event.action === "activity"
+					? "活动"
+					: "提交";
+		meta.textContent = `${formatTimestamp(event.date)} · ${timelineSourceLabels[event.source]} · ${action}${event.available ? "" : " · 笔记已删除"}`;
+		body.append(title, meta);
+		const remove = document.createElement("button");
+		remove.type = "button";
+		remove.dataset.deleteTimelineEvent = "";
+		remove.className =
+			"shrink-0 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-bold text-red-700 transition hover:bg-red-100";
+		remove.textContent = "删除";
+		article.append(body, remove);
+		list.append(article);
+	}
+}
+
+async function loadAdminTimeline(root: HTMLElement) {
+	const refresh = root.querySelector<HTMLButtonElement>(
+		"#admin-timeline-refresh",
+	);
+	const message = root.querySelector<HTMLElement>("#admin-timeline-message");
+	if (refresh) refresh.disabled = true;
+	setAdminMessage(message, "");
+	try {
+		const response = await fetch("/api/admin/timeline", { cache: "no-store" });
+		const result = await response.json();
+		if (!response.ok) throw new Error(result.error || "公开时间线读取失败。");
+		renderAdminTimeline(root, result.events || []);
+	} catch (error) {
+		setAdminMessage(
+			message,
+			error instanceof Error ? error.message : "公开时间线读取失败。",
+			true,
+		);
+	} finally {
+		if (refresh) refresh.disabled = false;
+	}
+}
+
+function setAdminSectionExpanded(section: HTMLElement, expanded: boolean) {
+	section
+		.querySelector<HTMLElement>("[data-admin-section-content]")
+		?.classList.toggle("hidden", !expanded);
+	const button = section.querySelector<HTMLButtonElement>(
+		"button[data-admin-collapse]",
+	);
+	if (button) {
+		button.setAttribute("aria-expanded", String(expanded));
+		button.textContent = expanded ? "收起" : "展开";
+	}
+}
+
 function renderAdminNotes(root: HTMLElement, notes: AdminNote[]) {
 	const list = root.querySelector<HTMLElement>("#admin-notes-list");
 	if (!list) return;
@@ -422,6 +520,78 @@ function bindAdminTools(root: HTMLElement) {
 	root
 		.querySelector<HTMLButtonElement>("#admin-notes-refresh")
 		?.addEventListener("click", () => void loadAdminNotes(root));
+	root
+		.querySelector<HTMLButtonElement>("#admin-timeline-refresh")
+		?.addEventListener("click", () => void loadAdminTimeline(root));
+	root.addEventListener("click", (event) => {
+		const target = event.target as Element | null;
+		const collapse = target?.closest<HTMLButtonElement>(
+			"button[data-admin-collapse]",
+		);
+		if (collapse) {
+			const section = collapse.closest<HTMLElement>("[data-admin-section]");
+			if (section) {
+				setAdminSectionExpanded(
+					section,
+					collapse.getAttribute("aria-expanded") !== "true",
+				);
+			}
+			return;
+		}
+		const navigation = target?.closest<HTMLAnchorElement>(
+			"#admin-section-nav a[href^='#']",
+		);
+		if (!navigation) return;
+		const section = root.querySelector<HTMLElement>(navigation.hash);
+		if (section?.matches("[data-admin-section]")) {
+			setAdminSectionExpanded(section, true);
+		}
+	});
+
+	const timelinePanel = root.querySelector<HTMLElement>(
+		"#admin-timeline-panel",
+	);
+	const timelineMessage = root.querySelector<HTMLElement>(
+		"#admin-timeline-message",
+	);
+	timelinePanel?.addEventListener("click", async (event) => {
+		const button = (event.target as Element | null)?.closest<HTMLButtonElement>(
+			"button[data-delete-timeline-event]",
+		);
+		if (!button) return;
+		const article = button.closest<HTMLElement>("[data-timeline-event-id]");
+		const eventId = article?.dataset.timelineEventId;
+		const title = article?.querySelector("p")?.textContent?.trim() || "这条活动";
+		if (!eventId) return;
+		if (!window.confirm(`确定从公开时间线删除“${title}”吗？这不会删除对应笔记。`)) {
+			return;
+		}
+		button.disabled = true;
+		setAdminMessage(timelineMessage, "");
+		try {
+			const response = await fetch("/api/admin/timeline", {
+				method: "DELETE",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ eventId }),
+			});
+			const result = await response.json();
+			if (!response.ok) throw new Error(result.error || "公开活动删除失败。");
+			article.remove();
+			if (!timelinePanel.querySelector("[data-timeline-event-id]")) {
+				renderAdminTimeline(root, []);
+			}
+			invalidateTimelineData();
+			setAdminMessage(timelineMessage, "该活动已从公开时间线删除。");
+			void loadAdminActivity(root);
+		} catch (error) {
+			setAdminMessage(
+				timelineMessage,
+				error instanceof Error ? error.message : "公开活动删除失败。",
+				true,
+			);
+			button.disabled = false;
+		}
+	});
 	const notesPanel = root.querySelector<HTMLElement>("#admin-notes-panel");
 	const notesMessage = root.querySelector<HTMLElement>("#admin-notes-message");
 	notesPanel?.addEventListener("click", async (event) => {
@@ -452,6 +622,7 @@ function bindAdminTools(root: HTMLElement) {
 			}
 			invalidatePublishedNotes();
 			setAdminMessage(notesMessage, `已删除“${result.title || title}”。`);
+			void loadAdminTimeline(root);
 			void loadAdminActivity(root);
 		} catch (error) {
 			setAdminMessage(
@@ -539,6 +710,7 @@ function bindAdminTools(root: HTMLElement) {
 			invalidatePublishedNotes();
 			form.reset();
 			void loadAdminNotes(root);
+			void loadAdminTimeline(root);
 			setAdminMessage(message, "笔记已发布。");
 			if (message) {
 				const link = document.createElement("a");
@@ -552,6 +724,44 @@ function bindAdminTools(root: HTMLElement) {
 			setAdminMessage(
 				message,
 				error instanceof Error ? error.message : "笔记发布失败。",
+				true,
+			);
+		} finally {
+			if (submit) submit.disabled = false;
+		}
+	});
+
+	const timelineForm = root.querySelector<HTMLFormElement>(
+		"#admin-timeline-form",
+	);
+	timelineForm?.addEventListener("submit", async (event) => {
+		event.preventDefault();
+		const title = root.querySelector<HTMLInputElement>(
+			"#admin-timeline-title",
+		);
+		const submit = root.querySelector<HTMLButtonElement>(
+			"#admin-timeline-submit",
+		);
+		const message = root.querySelector<HTMLElement>("#admin-timeline-message");
+		if (submit) submit.disabled = true;
+		setAdminMessage(message, "");
+		try {
+			const response = await fetch("/api/admin/timeline", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ title: title?.value || "" }),
+			});
+			const result = await response.json();
+			if (!response.ok) throw new Error(result.error || "公开活动发布失败。");
+			timelineForm.reset();
+			invalidateTimelineData();
+			await loadAdminTimeline(root);
+			setAdminMessage(message, "公开活动已发布。");
+			void loadAdminActivity(root);
+		} catch (error) {
+			setAdminMessage(
+				message,
+				error instanceof Error ? error.message : "公开活动发布失败。",
 				true,
 			);
 		} finally {
@@ -572,14 +782,12 @@ export function initAccountPage() {
 	const expiry = root.querySelector<HTMLElement>("#account-expiry");
 	const message = root.querySelector<HTMLElement>("#account-message");
 	const logout = root.querySelector<HTMLButtonElement>("#logout-button");
-	const adminPanel = root.querySelector<HTMLElement>("#admin-activity-panel");
-	const adminPublishPanel = root.querySelector<HTMLElement>(
-		"#admin-publish-panel",
+	const adminSections = root.querySelectorAll<HTMLElement>(
+		"[data-admin-section]",
 	);
-	const adminCommentsPanel = root.querySelector<HTMLElement>(
-		"#admin-comments-panel",
+	const adminNavigation = root.querySelector<HTMLElement>(
+		"#admin-section-nav",
 	);
-	const adminNotesPanel = root.querySelector<HTMLElement>("#admin-notes-panel");
 
 	if (logout && !boundLogoutButtons.has(logout)) {
 		boundLogoutButtons.add(logout);
@@ -610,10 +818,8 @@ export function initAccountPage() {
 		loading.classList.remove("hidden");
 	}
 	details?.classList.add("hidden");
-	adminPanel?.classList.add("hidden");
-	adminPublishPanel?.classList.add("hidden");
-	adminCommentsPanel?.classList.add("hidden");
-	adminNotesPanel?.classList.add("hidden");
+	adminNavigation?.classList.add("hidden");
+	for (const section of adminSections) section.classList.add("hidden");
 
 	void (async () => {
 		try {
@@ -634,15 +840,14 @@ export function initAccountPage() {
 			loading?.classList.add("hidden");
 			details?.classList.remove("hidden");
 
-			if (result.user.role === "admin" && adminPanel) {
-				adminPanel.classList.remove("hidden");
-				adminPublishPanel?.classList.remove("hidden");
-				adminCommentsPanel?.classList.remove("hidden");
-				adminNotesPanel?.classList.remove("hidden");
+			if (result.user.role === "admin" && adminSections.length) {
+				adminNavigation?.classList.remove("hidden");
+				for (const section of adminSections) section.classList.remove("hidden");
 				bindAdminButtons(root);
 				bindAdminTools(root);
 				await Promise.all([
 					loadAdminActivity(root),
+					loadAdminTimeline(root),
 					loadAdminNotes(root),
 					loadPendingComments(root),
 				]);

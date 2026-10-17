@@ -1,6 +1,7 @@
 <script lang="ts">
 import { onMount } from "svelte";
 import { getPublishedNoteData } from "../scripts/published-notes";
+import { getTimelineData } from "../scripts/timeline-data";
 import { getPostUrlBySlug } from "../utils/url-utils";
 
 export let tags: string[] = [];
@@ -34,7 +35,7 @@ interface TimelineEntry {
 	tags: string[];
 	category?: string | null;
 	date: Date;
-	action: "published" | "updated";
+	action: "published" | "updated" | "activity";
 	available: boolean;
 	slug?: string;
 	url?: string;
@@ -104,9 +105,17 @@ function entryHref(entry: TimelineEntry) {
 	return entry.url || (entry.slug ? getPostUrlBySlug(entry.slug) : undefined);
 }
 
+function actionLabel(action: TimelineEntry["action"]) {
+	if (action === "updated") return "修改";
+	if (action === "activity") return "活动";
+	return "提交";
+}
+
 onMount(async () => {
 	let dynamicEntries: TimelineEntry[] = [];
 	let deletedKeys = new Set<string>();
+	let customEntries: TimelineEntry[] = [];
+	let hiddenEventIds = new Set<string>();
 	try {
 		const { notes, deletedStaticNotes, deletedDynamicNotes } =
 			await getPublishedNoteData();
@@ -162,6 +171,16 @@ onMount(async () => {
 	} catch (error) {
 		console.error("在线笔记时间线读取失败。", error);
 	}
+	try {
+		const timelineData = await getTimelineData();
+		hiddenEventIds = new Set(timelineData.hiddenEventIds);
+		customEntries = timelineData.events.map((event) => ({
+			...event,
+			date: new Date(event.date * 1000),
+		}));
+	} catch (error) {
+		console.error("公开活动时间线读取失败。", error);
+	}
 	const staticEntries = sortedPosts.flatMap(entriesForPost).map((entry) => ({
 		...entry,
 		available: !deletedKeys.has(`static:${entry.slug}`),
@@ -170,7 +189,10 @@ onMount(async () => {
 		...staticEntries,
 		...dynamicEntries,
 		...archivedEntries.map((entry) => ({ ...entry, date: asDate(entry.date) })),
-	].sort((a, b) => b.date.getTime() - a.date.getTime());
+		...customEntries,
+	]
+		.filter((entry) => !hiddenEventIds.has(entry.id))
+		.sort((a, b) => b.date.getTime() - a.date.getTime());
 
 	if (tags.length > 0) {
 		filteredEntries = filteredEntries.filter(
@@ -233,7 +255,7 @@ onMount(async () => {
 
             {#each group.entries as entry}
                 <svelte:element
-                        this={entry.available ? "a" : "div"}
+                        this={entryHref(entry) ? "a" : "div"}
                         href={entryHref(entry)}
                         aria-label={entry.title}
                         class="group btn-plain !block h-10 w-full rounded-lg hover:text-[initial]"
@@ -266,7 +288,7 @@ onMount(async () => {
                         >
                             {entry.title}
                             <span class="ml-2 text-xs font-normal text-30">
-                                {entry.action === "updated" ? "修改" : "提交"}{entry.available ? "" : "（已删除）"}
+                                {actionLabel(entry.action)}{entry.available ? "" : "（已删除）"}
                             </span>
                         </div>
 

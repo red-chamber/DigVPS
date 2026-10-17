@@ -13,6 +13,8 @@ const IMPORTANT_EVENTS_SQL = `
 	'note_published',
 	'note_deleted',
 	'note_liked',
+	'timeline_event_published',
+	'timeline_event_deleted',
 	'account_deleted'
 `;
 

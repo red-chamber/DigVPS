@@ -3,6 +3,9 @@ import { onRequest as authMiddleware } from "../functions/_middleware.js";
 import { onRequestGet as adminActivity } from "../functions/api/admin/activity.js";
 import { onRequestPost as moderateComment } from "../functions/api/admin/comments.js";
 import { onRequestPost as publishNote } from "../functions/api/admin/notes.js";
+import {
+	onRequestPost as publishTimelineEvent,
+} from "../functions/api/admin/timeline.js";
 import { onRequestPost as submitComment } from "../functions/api/note-comments.js";
 import {
 	createSessionRecord,
@@ -259,6 +262,51 @@ const regularPublish = await publishNote({
 	data: { user: { id: "user-1", role: "user" } },
 });
 assert.equal(regularPublish.status, 403);
+
+const regularTimelinePublish = await publishTimelineEvent({
+	request: new Request("https://digvps.pages.dev/api/admin/timeline", {
+		method: "POST",
+	}),
+	data: { user: { id: "user-1", role: "user" } },
+});
+assert.equal(regularTimelinePublish.status, 403);
+
+const timelineSql = [];
+const timelineBindings = [];
+const beforeTimelinePublish = Math.floor(Date.now() / 1000);
+const adminTimelinePublish = await publishTimelineEvent({
+	request: new Request("https://digvps.pages.dev/api/admin/timeline", {
+		method: "POST",
+		headers: {
+			Origin: "https://digvps.pages.dev",
+			"Content-Type": "application/json",
+		},
+		body: JSON.stringify({ title: "测试公开活动" }),
+	}),
+	data: { user: { id: "admin-1", role: "admin" } },
+	env: {
+		DB: {
+			prepare(sql) {
+				timelineSql.push(sql);
+				return {
+					bind(...values) {
+						timelineBindings.push(values);
+						return this;
+					},
+					async run() {
+						return { success: true };
+					},
+				};
+			},
+		},
+	},
+});
+assert.equal(adminTimelinePublish.status, 201);
+const adminTimelineBody = await adminTimelinePublish.json();
+assert.equal(adminTimelineBody.event.title, "测试公开活动");
+assert.ok(adminTimelineBody.event.createdAt >= beforeTimelinePublish);
+assert.match(timelineSql[0], /INSERT INTO public_timeline_events/u);
+assert.equal(timelineBindings[0][1], "测试公开活动");
 
 const regularModeration = await moderateComment({
 	request: new Request("https://digvps.pages.dev/api/admin/comments", {
