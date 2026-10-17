@@ -1,0 +1,36 @@
+---
+interface Props {
+	prefix: string;
+}
+
+const { prefix } = Astro.props;
+---
+
+<div class="grid gap-4 md:grid-cols-2">
+	<label class="block text-sm font-medium text-black/70">
+		标题 <span class="text-red-600">*</span>
+		<input id={`${prefix}-title`} name="title" required maxlength="120" class="mt-1.5 w-full rounded-lg border border-[var(--line-color)] bg-white/60 px-3 py-2.5 outline-none focus:border-[var(--primary)]" />
+	</label>
+	<label class="block text-sm font-medium text-black/70">
+		Slug <span class="text-red-600">*</span>
+		<input id={`${prefix}-slug`} name="slug" required maxlength="80" pattern="[a-z0-9](?:[a-z0-9-]{0,78}[a-z0-9])?" placeholder="example-note" class="mt-1.5 w-full rounded-lg border border-[var(--line-color)] bg-white/60 px-3 py-2.5 outline-none focus:border-[var(--primary)]" />
+	</label>
+</div>
+<label class="block text-sm font-medium text-black/70">
+	简短介绍 <span class="text-red-600">*</span>
+	<textarea id={`${prefix}-description`} name="description" required maxlength="240" rows="2" class="mt-1.5 w-full rounded-lg border border-[var(--line-color)] bg-white/60 px-3 py-2.5 outline-none focus:border-[var(--primary)]" placeholder="用于笔记列表预览，不属于 Markdown 正文"></textarea>
+</label>
+<div class="grid gap-4 md:grid-cols-2">
+	<label class="block text-sm font-medium text-black/70">
+		分类 <span class="text-red-600">*</span>
+		<input id={`${prefix}-category`} name="category" required maxlength="60" class="mt-1.5 w-full rounded-lg border border-[var(--line-color)] bg-white/60 px-3 py-2.5 outline-none focus:border-[var(--primary)]" />
+	</label>
+	<label class="block text-sm font-medium text-black/70">
+		标签
+		<input id={`${prefix}-tags`} name="tags" placeholder="Markdown, Linux（逗号分隔）" class="mt-1.5 w-full rounded-lg border border-[var(--line-color)] bg-white/60 px-3 py-2.5 outline-none focus:border-[var(--primary)]" />
+	</label>
+</div>
+<label class="block text-sm font-medium text-black/70">
+	Markdown 正文 <span class="text-red-600">*</span>
+	<textarea id={`${prefix}-markdown`} name="markdown" required rows="16" class="mt-1.5 w-full rounded-lg border border-[var(--line-color)] bg-white/60 px-3 py-3 font-mono text-sm outline-none focus:border-[var(--primary)]" placeholder="# 标题&#10;&#10;正文……"></textarea>
+</label>

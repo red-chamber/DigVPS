@@ -1,5 +1,6 @@
 ---
 import { Icon } from "astro-icon/components";
+import AdminNoteFields from "../components/AdminNoteFields.astro";
 import MainGridLayout from "../layouts/MainGridLayout.astro";
 ---
 
@@ -57,34 +58,7 @@ import MainGridLayout from "../layouts/MainGridLayout.astro";
 			<button type="button" data-admin-collapse aria-expanded="true" class="btn-regular shrink-0 rounded-lg px-3 py-2 text-sm font-bold">收起</button>
 		</div>
 		<form id="admin-note-form" data-admin-section-content class="space-y-4">
-			<div class="grid gap-4 md:grid-cols-2">
-				<label class="block text-sm font-medium text-black/70">
-					标题 <span class="text-red-600">*</span>
-					<input id="admin-note-title" name="title" required maxlength="120" class="mt-1.5 w-full rounded-lg border border-[var(--line-color)] bg-white/60 px-3 py-2.5 outline-none focus:border-[var(--primary)]" />
-				</label>
-				<label class="block text-sm font-medium text-black/70">
-					Slug <span class="text-red-600">*</span>
-					<input id="admin-note-slug" name="slug" required maxlength="80" pattern="[a-z0-9](?:[a-z0-9-]{0,78}[a-z0-9])?" placeholder="example-note" class="mt-1.5 w-full rounded-lg border border-[var(--line-color)] bg-white/60 px-3 py-2.5 outline-none focus:border-[var(--primary)]" />
-				</label>
-			</div>
-			<label class="block text-sm font-medium text-black/70">
-				简短介绍 <span class="text-red-600">*</span>
-				<textarea id="admin-note-description" name="description" required maxlength="240" rows="2" class="mt-1.5 w-full rounded-lg border border-[var(--line-color)] bg-white/60 px-3 py-2.5 outline-none focus:border-[var(--primary)]" placeholder="用于笔记列表预览，不属于 Markdown 正文"></textarea>
-			</label>
-			<div class="grid gap-4 md:grid-cols-2">
-				<label class="block text-sm font-medium text-black/70">
-					分类 <span class="text-red-600">*</span>
-					<input id="admin-note-category" name="category" required maxlength="60" class="mt-1.5 w-full rounded-lg border border-[var(--line-color)] bg-white/60 px-3 py-2.5 outline-none focus:border-[var(--primary)]" />
-				</label>
-				<label class="block text-sm font-medium text-black/70">
-					标签
-					<input id="admin-note-tags" name="tags" placeholder="Markdown, Linux（逗号分隔）" class="mt-1.5 w-full rounded-lg border border-[var(--line-color)] bg-white/60 px-3 py-2.5 outline-none focus:border-[var(--primary)]" />
-				</label>
-			</div>
-			<label class="block text-sm font-medium text-black/70">
-				Markdown 正文 <span class="text-red-600">*</span>
-				<textarea id="admin-note-markdown" name="markdown" required rows="16" class="mt-1.5 w-full rounded-lg border border-[var(--line-color)] bg-white/60 px-3 py-3 font-mono text-sm outline-none focus:border-[var(--primary)]" placeholder="# 标题&#10;&#10;正文……"></textarea>
-			</label>
+			<AdminNoteFields prefix="admin-note" />
 			<p id="admin-note-message" class="hidden rounded-lg px-4 py-3 text-sm" role="status"></p>
 			<button id="admin-note-submit" type="submit" class="btn-regular w-full rounded-lg px-4 py-3 font-bold">立即发布</button>
 		</form>
@@ -129,8 +103,21 @@ import MainGridLayout from "../layouts/MainGridLayout.astro";
 				<button type="button" data-admin-collapse aria-expanded="true" class="btn-regular rounded-lg px-3 py-2 text-sm font-bold">收起</button>
 			</div>
 		</div>
-		<div data-admin-section-content>
+		<div data-admin-section-content class="space-y-5">
 			<p id="admin-notes-message" class="hidden rounded-lg px-4 py-3 text-sm" role="status"></p>
+			<form id="admin-note-edit-form" class="hidden space-y-4 rounded-xl border border-[var(--primary)]/30 bg-white/35 p-4 md:p-5">
+				<div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+					<div>
+						<h3 class="text-lg font-bold text-black/80">更新笔记</h3>
+						<p id="admin-note-edit-hint" class="mt-1 text-sm text-black/50"></p>
+					</div>
+					<button id="admin-note-edit-cancel" type="button" class="btn-regular shrink-0 rounded-lg px-3 py-2 text-sm font-bold">取消</button>
+				</div>
+				<input name="noteKey" type="hidden" />
+				<AdminNoteFields prefix="admin-note-edit" />
+				<p id="admin-note-edit-message" class="hidden rounded-lg px-4 py-3 text-sm" role="status"></p>
+				<button id="admin-note-edit-submit" type="submit" class="btn-regular w-full rounded-lg px-4 py-3 font-bold">发布更新</button>
+			</form>
 			<div id="admin-notes-list" class="space-y-2">
 				<p class="rounded-lg bg-[var(--btn-regular-bg)] px-4 py-4 text-black/55">正在读取笔记……</p>
 			</div>

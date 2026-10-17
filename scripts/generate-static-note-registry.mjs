@@ -26,6 +26,9 @@ const notes = await Promise.all(
 			.replace(/\.md$/u, "");
 		const source = await readFile(file, "utf8");
 		const frontmatter = source.match(/^---\s*([\s\S]*?)\s*---/u)?.[1] || "";
+		const markdown = source
+			.replace(/^---\s*[\s\S]*?\s*---\s*/u, "")
+			.trim();
 		const scalar = (name, fallback = "") => {
 			const raw = frontmatter
 				.match(new RegExp(`^${name}:\\s*(.+)$`, "mu"))?.[1]
@@ -63,6 +66,7 @@ const notes = await Promise.all(
 				description: scalar("description"),
 				category: scalar("category"),
 				tags: Array.isArray(tags) ? tags.map(String) : [],
+				markdown,
 				published: scalar("published"),
 				updated: scalar("updated"),
 				history,

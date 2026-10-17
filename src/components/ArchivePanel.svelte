@@ -134,14 +134,17 @@ onMount(async () => {
 					url: `/notes/read/?slug=${encodeURIComponent(note.slug)}`,
 				},
 			];
-			if (note.updated_at !== note.published_at) {
-				entries.push({
+			entries.push(
+				...(note.updateHistory || []).map((update) => ({
 					...entries[0],
-					id: `dynamic:${note.slug}:updated:${note.updated_at}`,
-					date: new Date(note.updated_at * 1000),
-					action: "updated",
-				});
-			}
+					id: update.event_id,
+					title: update.title,
+					tags: update.tags,
+					category: update.category,
+					date: new Date(update.updated_at * 1000),
+					action: "updated" as const,
+				})),
+			);
 			return entries;
 		});
 		dynamicEntries.push(
@@ -155,17 +158,18 @@ onMount(async () => {
 					action: "published",
 					available: false,
 				};
-				return note.updated_at !== note.published_at
-					? [
-							base,
-							{
-								...base,
-								id: `dynamic:${note.slug}:updated:${note.updated_at}`,
-								date: new Date(note.updated_at * 1000),
-								action: "updated" as const,
-							},
-						]
-					: [base];
+				return [
+					base,
+					...(note.updateHistory || []).map((update) => ({
+						...base,
+						id: update.event_id,
+						title: update.title,
+						tags: update.tags,
+						category: update.category,
+						date: new Date(update.updated_at * 1000),
+						action: "updated" as const,
+					})),
+				];
 			}),
 		);
 	} catch (error) {

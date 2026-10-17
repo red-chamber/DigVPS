@@ -54,6 +54,7 @@ const activityLabels: Record<string, string> = {
 	comment_approved: "接纳评论",
 	comment_rejected: "驳回评论",
 	note_published: "发布笔记",
+	note_updated: "更新笔记",
 	note_deleted: "删除笔记",
 	note_liked: "点赞笔记",
 	account_deleted: "注销账户",
@@ -282,6 +283,79 @@ interface AdminNote {
 	path: string;
 }
 
+interface EditableAdminNote {
+	key: string;
+	type: "static" | "dynamic";
+	title: string;
+	slug: string;
+	description: string;
+	category: string;
+	tags: string[];
+	markdown: string;
+}
+
+function noteFormPayload(form: HTMLFormElement) {
+	const data = new FormData(form);
+	return {
+		noteKey: String(data.get("noteKey") || ""),
+		title: String(data.get("title") || ""),
+		slug: String(data.get("slug") || ""),
+		description: String(data.get("description") || ""),
+		category: String(data.get("category") || ""),
+		tags: String(data.get("tags") || "")
+			.split(/[，,]/u)
+			.map((tag) => tag.trim())
+			.filter(Boolean),
+		markdown: String(data.get("markdown") || ""),
+	};
+}
+
+function setNoteFormValue(
+	form: HTMLFormElement,
+	name: string,
+	value: string,
+) {
+	const control = form.elements.namedItem(name);
+	if (control instanceof HTMLInputElement || control instanceof HTMLTextAreaElement) {
+		control.value = value;
+	}
+}
+
+function closeNoteEditor(root: HTMLElement) {
+	const form = root.querySelector<HTMLFormElement>("#admin-note-edit-form");
+	form?.reset();
+	form?.classList.add("hidden");
+	setAdminMessage(
+		root.querySelector<HTMLElement>("#admin-note-edit-message"),
+		"",
+	);
+}
+
+function populateNoteEditor(root: HTMLElement, note: EditableAdminNote) {
+	const form = root.querySelector<HTMLFormElement>("#admin-note-edit-form");
+	if (!form) return;
+	setNoteFormValue(form, "noteKey", note.key);
+	setNoteFormValue(form, "title", note.title);
+	setNoteFormValue(form, "slug", note.slug);
+	setNoteFormValue(form, "description", note.description);
+	setNoteFormValue(form, "category", note.category);
+	setNoteFormValue(form, "tags", note.tags.join(", "));
+	setNoteFormValue(form, "markdown", note.markdown);
+	const hint = root.querySelector<HTMLElement>("#admin-note-edit-hint");
+	if (hint) {
+		hint.textContent =
+			note.type === "static"
+				? "这是仓库笔记；发布更新后将转为在线笔记。Slug 须改为英文小写格式。"
+				: `正在编辑：${note.title}`;
+	}
+	setAdminMessage(
+		root.querySelector<HTMLElement>("#admin-note-edit-message"),
+		"",
+	);
+	form.classList.remove("hidden");
+	form.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 interface AdminTimelineEvent {
 	id: string;
 	title: string;
@@ -414,13 +488,21 @@ function renderAdminNotes(root: HTMLElement, notes: AdminNote[]) {
 			...note.tags.map((tag) => `#${tag}`),
 		].join(" · ");
 		body.append(title, meta);
+		const actions = document.createElement("div");
+		actions.className = "flex shrink-0 gap-2";
+		const update = document.createElement("button");
+		update.type = "button";
+		update.dataset.updateNote = "";
+		update.className = "btn-regular rounded-lg px-4 py-2 text-sm font-bold";
+		update.textContent = "更新";
 		const remove = document.createElement("button");
 		remove.type = "button";
 		remove.dataset.deleteNote = "";
 		remove.className =
-			"shrink-0 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-bold text-red-700 transition hover:bg-red-100";
+			"rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-bold text-red-700 transition hover:bg-red-100";
 		remove.textContent = "删除";
-		article.append(body, remove);
+		actions.append(update, remove);
+		article.append(body, actions);
 		list.append(article);
 	}
 }
@@ -612,6 +694,35 @@ function bindAdminTools(root: HTMLElement) {
 	const notesPanel = root.querySelector<HTMLElement>("#admin-notes-panel");
 	const notesMessage = root.querySelector<HTMLElement>("#admin-notes-message");
 	notesPanel?.addEventListener("click", async (event) => {
+		const updateButton = (
+			event.target as Element | null
+		)?.closest<HTMLButtonElement>("button[data-update-note]");
+		if (updateButton) {
+			const article = updateButton.closest<HTMLElement>("[data-note-key]");
+			if (!article?.dataset.noteKey) return;
+			updateButton.disabled = true;
+			setAdminMessage(notesMessage, "");
+			try {
+				const query = new URLSearchParams({ noteKey: article.dataset.noteKey });
+				const response = await fetch(`/api/admin/notes?${query}`, {
+					cache: "no-store",
+				});
+				const result = await response.json();
+				if (!response.ok) {
+					throw new Error(result.error || "笔记内容读取失败。");
+				}
+				populateNoteEditor(root, result.note as EditableAdminNote);
+			} catch (error) {
+				setAdminMessage(
+					notesMessage,
+					error instanceof Error ? error.message : "笔记内容读取失败。",
+					true,
+				);
+			} finally {
+				updateButton.disabled = false;
+			}
+			return;
+		}
 		const button = (event.target as Element | null)?.closest<HTMLButtonElement>(
 			"button[data-delete-note]",
 		);
@@ -649,6 +760,54 @@ function bindAdminTools(root: HTMLElement) {
 				true,
 			);
 			button.disabled = false;
+		}
+	});
+
+	root
+		.querySelector<HTMLButtonElement>("#admin-note-edit-cancel")
+		?.addEventListener("click", () => closeNoteEditor(root));
+	const editForm = root.querySelector<HTMLFormElement>("#admin-note-edit-form");
+	editForm?.addEventListener("submit", async (event) => {
+		event.preventDefault();
+		const submit = root.querySelector<HTMLButtonElement>(
+			"#admin-note-edit-submit",
+		);
+		const editMessage = root.querySelector<HTMLElement>(
+			"#admin-note-edit-message",
+		);
+		if (submit) submit.disabled = true;
+		setAdminMessage(editMessage, "");
+		setAdminMessage(notesMessage, "");
+		try {
+			const response = await fetch("/api/admin/notes", {
+				method: "PUT",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(noteFormPayload(editForm)),
+			});
+			const result = await response.json();
+			if (!response.ok) throw new Error(result.error || "笔记更新失败。");
+			invalidatePublishedNotes();
+			invalidateTimelineData();
+			initPublishedNoteTaxonomy();
+			closeNoteEditor(root);
+			await Promise.all([loadAdminNotes(root), loadAdminTimeline(root)]);
+			setAdminMessage(notesMessage, `已更新“${result.title}”，时间线记录已生成。`);
+			if (notesMessage) {
+				const link = document.createElement("a");
+				link.href = result.path;
+				link.className = "ml-2 font-bold underline";
+				link.textContent = "打开笔记";
+				notesMessage.append(link);
+			}
+			void loadAdminActivity(root);
+		} catch (error) {
+			setAdminMessage(
+				editMessage,
+				error instanceof Error ? error.message : "笔记更新失败。",
+				true,
+			);
+		} finally {
+			if (submit) submit.disabled = false;
 		}
 	});
 	commentPanel?.addEventListener("click", async (event) => {
@@ -702,26 +861,13 @@ function bindAdminTools(root: HTMLElement) {
 		event.preventDefault();
 		const submit = root.querySelector<HTMLButtonElement>("#admin-note-submit");
 		const message = root.querySelector<HTMLElement>("#admin-note-message");
-		const value = (selector: string) =>
-			root.querySelector<HTMLInputElement | HTMLTextAreaElement>(selector)
-				?.value || "";
 		if (submit) submit.disabled = true;
 		setAdminMessage(message, "");
 		try {
 			const response = await fetch("/api/admin/notes", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
-					title: value("#admin-note-title"),
-					slug: value("#admin-note-slug"),
-					description: value("#admin-note-description"),
-					category: value("#admin-note-category"),
-					tags: value("#admin-note-tags")
-						.split(/[，,]/u)
-						.map((tag) => tag.trim())
-						.filter(Boolean),
-					markdown: value("#admin-note-markdown"),
-				}),
+				body: JSON.stringify(noteFormPayload(form)),
 			});
 			const result = await response.json();
 			if (!response.ok) throw new Error(result.error || "笔记发布失败。");

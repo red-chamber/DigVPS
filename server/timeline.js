@@ -52,7 +52,13 @@ function staticEvents() {
 	}).flat();
 }
 
-function dynamicEvents(notes) {
+function dynamicEvents(notes, updateHistory) {
+	const updatesByNote = new Map();
+	for (const update of updateHistory) {
+		const updates = updatesByNote.get(update.note_id) || [];
+		updates.push(update);
+		updatesByNote.set(update.note_id, updates);
+	}
 	return notes.flatMap((note) => {
 		const available = note.status === "published";
 		const base = {
@@ -66,17 +72,29 @@ function dynamicEvents(notes) {
 			source: "dynamic",
 			slug: note.slug,
 		};
-		return note.updated_at !== note.published_at
-			? [
-					base,
-					{
-						...base,
-						id: `dynamic:${note.slug}:updated:${note.updated_at}`,
-						date: note.updated_at,
-						action: "updated",
-					},
-				]
-			: [base];
+		const updates = updatesByNote.get(note.id) || [];
+		if (!updates.length && note.updated_at !== note.published_at) {
+			updates.push({
+				event_id: `dynamic:${note.slug}:updated:${note.updated_at}`,
+				slug: note.slug,
+				title: note.title,
+				category: note.category,
+				tags_json: note.tags_json,
+				updated_at: note.updated_at,
+			});
+		}
+		return [
+			base,
+			...updates.map((update) => ({
+				...base,
+				id: update.event_id,
+				title: update.title,
+				date: update.updated_at,
+				action: "updated",
+				tags: parseTags(update.tags_json),
+				category: update.category || null,
+			})),
+		];
 	});
 }
 
@@ -102,12 +120,22 @@ export function customTimelineEvent(row) {
 }
 
 export async function loadTimelineData(db) {
-	const [notesResult, deletedStaticResult, customResult, hiddenResult] =
+	const [
+		notesResult,
+		updateHistoryResult,
+		deletedStaticResult,
+		customResult,
+		hiddenResult,
+	] =
 		await db.batch([
 			db.prepare(
-				`SELECT slug, title, category, tags_json, published_at, updated_at, status
+				`SELECT id, slug, title, category, tags_json, published_at, updated_at, status
 				 FROM published_notes
 				 WHERE status IN ('published', 'archived')`,
+			),
+			db.prepare(
+				`SELECT event_id, note_id, slug, title, category, tags_json, updated_at
+				 FROM note_update_history`,
 			),
 			db.prepare("SELECT note_key FROM deleted_static_notes"),
 			db.prepare(
@@ -129,7 +157,10 @@ export async function loadTimelineData(db) {
 			...event,
 			available: !deletedStatic.has(`static:${event.slug}`),
 		})),
-		...dynamicEvents(notesResult.results || []),
+		...dynamicEvents(
+			notesResult.results || [],
+			updateHistoryResult.results || [],
+		),
 		...archivedEvents(),
 		...(customResult.results || []).map(customTimelineEvent),
 	]

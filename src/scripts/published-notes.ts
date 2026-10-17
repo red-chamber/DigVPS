@@ -6,6 +6,16 @@ export interface PublishedNoteSummary {
 	tags: string[];
 	published_at: number;
 	updated_at: number;
+	updateHistory: PublishedNoteUpdate[];
+}
+
+export interface PublishedNoteUpdate {
+	event_id: string;
+	slug: string;
+	title: string;
+	category: string;
+	tags: string[];
+	updated_at: number;
 }
 
 export interface DeletedStaticNoteSummary {

@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import { onRequest as authMiddleware } from "../functions/_middleware.js";
 import { onRequestGet as adminActivity } from "../functions/api/admin/activity.js";
 import { onRequestPost as moderateComment } from "../functions/api/admin/comments.js";
-import { onRequestPost as publishNote } from "../functions/api/admin/notes.js";
+import {
+	onRequestPost as publishNote,
+	onRequestPut as updateNote,
+} from "../functions/api/admin/notes.js";
 import {
 	onRequestDelete as deleteTimelineEvent,
 	onRequestPost as publishTimelineEvent,
@@ -301,6 +304,148 @@ const regularPublish = await publishNote({
 });
 assert.equal(regularPublish.status, 403);
 
+const regularUpdate = await updateNote({
+	request: new Request("https://digvps.pages.dev/api/admin/notes", {
+		method: "PUT",
+	}),
+	data: { user: { id: "user-1", role: "user" } },
+});
+assert.equal(regularUpdate.status, 403);
+
+const noteUpdateBatches = [];
+const noteUpdateSql = [];
+const dynamicEditableNote = {
+	id: "note-1",
+	slug: "test-note",
+	title: "旧标题",
+	description: "旧介绍",
+	markdown: "旧正文",
+	category: "Old",
+	tags_json: '["old"]',
+	published_at: 100,
+	updated_at: 100,
+};
+const noteUpdateDb = {
+	prepare(sql) {
+		noteUpdateSql.push(sql);
+		return {
+			sql,
+			bind(...values) {
+				this.values = values;
+				return this;
+			},
+			async first() {
+				return this.sql.includes("FROM published_notes")
+					? dynamicEditableNote
+					: null;
+			},
+			async run() {
+				return { success: true, meta: { changes: 1 } };
+			},
+		};
+	},
+	async batch(statements) {
+		noteUpdateBatches.push(statements);
+		return statements.map(() => ({ success: true, meta: { changes: 1 } }));
+	},
+};
+
+async function performNoteUpdate() {
+	return updateNote({
+		request: new Request("https://digvps.pages.dev/api/admin/notes", {
+			method: "PUT",
+			headers: {
+				Origin: "https://digvps.pages.dev",
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({
+				noteKey: "dynamic:test-note",
+				title: "新标题",
+				slug: "renamed-note",
+				description: "新介绍",
+				category: "Linux",
+				tags: ["Linux", "CLI"],
+				markdown: "# 新正文",
+			}),
+		}),
+		data: { user: { id: "admin-1", role: "admin" } },
+		env: { DB: noteUpdateDb },
+	});
+}
+
+const firstNoteUpdate = await performNoteUpdate();
+const secondNoteUpdate = await performNoteUpdate();
+assert.equal(firstNoteUpdate.status, 200);
+assert.equal(secondNoteUpdate.status, 200);
+const firstNoteUpdateBody = await firstNoteUpdate.json();
+const secondNoteUpdateBody = await secondNoteUpdate.json();
+assert.equal(firstNoteUpdateBody.noteKey, "dynamic:renamed-note");
+assert.notEqual(firstNoteUpdateBody.eventId, secondNoteUpdateBody.eventId);
+assert.equal(noteUpdateBatches.length, 2);
+assert.equal(noteUpdateBatches[0].length, 4);
+assert.match(noteUpdateBatches[0][0].sql, /UPDATE published_notes/u);
+assert.match(noteUpdateBatches[0][1].sql, /UPDATE note_comments/u);
+assert.match(noteUpdateBatches[0][2].sql, /UPDATE note_likes/u);
+assert.match(noteUpdateBatches[0][3].sql, /INSERT INTO note_update_history/u);
+assert.ok(noteUpdateSql.some((sql) => /INSERT INTO user_activities/u.test(sql)));
+
+let staticConversionStatements = [];
+const staticConversionDb = {
+	prepare(sql) {
+		return {
+			sql,
+			bind(...values) {
+				this.values = values;
+				return this;
+			},
+			async first() {
+				return null;
+			},
+			async run() {
+				return { success: true, meta: { changes: 1 } };
+			},
+		};
+	},
+	async batch(statements) {
+		staticConversionStatements = statements;
+		return statements.map(() => ({ success: true, meta: { changes: 1 } }));
+	},
+};
+const staticConversion = await updateNote({
+	request: new Request("https://digvps.pages.dev/api/admin/notes", {
+		method: "PUT",
+		headers: {
+			Origin: "https://digvps.pages.dev",
+			"Content-Type": "application/json",
+		},
+		body: JSON.stringify({
+			noteKey: "static:notes/linux/全局",
+			title: "Linux 全局命令",
+			slug: "linux-global",
+			description: "Linux 全局命令摘要",
+			category: "Linux",
+			tags: ["Linux"],
+			markdown: "# Linux",
+		}),
+	}),
+	data: { user: { id: "admin-1", role: "admin" } },
+	env: { DB: staticConversionDb },
+});
+assert.equal(staticConversion.status, 200);
+assert.equal((await staticConversion.json()).noteKey, "dynamic:linux-global");
+assert.match(staticConversionStatements[0].sql, /INSERT INTO published_notes/u);
+assert.match(staticConversionStatements[1].sql, /INSERT INTO deleted_static_notes/u);
+assert.ok(
+	staticConversionStatements.some((statement) =>
+		/hidden_timeline_events/u.test(statement.sql),
+	),
+);
+assert.ok(
+	staticConversionStatements.some((statement) =>
+		/INSERT INTO note_update_history/u.test(statement.sql),
+	),
+);
+
 const regularTimelinePublish = await publishTimelineEvent({
 	request: new Request("https://digvps.pages.dev/api/admin/timeline", {
 		method: "POST",
@@ -377,9 +522,10 @@ const timelineDeleteDb = {
 		};
 	},
 	async batch(statements) {
-		if (statements.length === 4) {
+		if (statements.length === 5) {
 			return [
 				{ results: [dynamicTimelineRow] },
+				{ results: [] },
 				{ results: [] },
 				{ results: [] },
 				{ results: [] },
