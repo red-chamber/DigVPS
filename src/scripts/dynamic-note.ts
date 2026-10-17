@@ -2,6 +2,67 @@ import { initNoteInteractions } from "./note-interactions";
 
 const loadingNotes = new WeakSet<HTMLElement>();
 
+function codeLanguage(code: HTMLElement) {
+	const languageClass = Array.from(code.classList).find((name) =>
+		name.startsWith("language-"),
+	);
+	return languageClass
+		? languageClass.slice("language-".length).replaceAll("-", " ")
+		: "code";
+}
+
+async function copyCode(source: string) {
+	if (!navigator.clipboard?.writeText) {
+		throw new Error("Clipboard access is unavailable.");
+	}
+	await navigator.clipboard.writeText(source);
+}
+
+function enhanceCodeBlocks(content: HTMLElement) {
+	for (const pre of content.querySelectorAll<HTMLPreElement>("pre")) {
+		if (pre.dataset.enhanced === "true") continue;
+		const code = pre.querySelector<HTMLElement>(":scope > code");
+		if (!code) continue;
+		pre.dataset.enhanced = "true";
+
+		const frame = document.createElement("div");
+		frame.className = "dynamic-code-block";
+		const toolbar = document.createElement("div");
+		toolbar.className = "dynamic-code-toolbar";
+		const language = document.createElement("span");
+		language.className = "dynamic-code-language";
+		language.textContent = codeLanguage(code);
+		const copy = document.createElement("button");
+		copy.type = "button";
+		copy.className = "dynamic-code-copy";
+		copy.textContent = "Copy";
+		copy.setAttribute("aria-label", "Copy code");
+		copy.addEventListener("click", async () => {
+			copy.disabled = true;
+			try {
+				await copyCode(code.textContent || "");
+				copy.textContent = "Copied";
+				copy.classList.add("success");
+				window.setTimeout(() => {
+					copy.textContent = "Copy";
+					copy.classList.remove("success");
+				}, 1200);
+			} catch {
+				copy.textContent = "Failed";
+				window.setTimeout(() => {
+					copy.textContent = "Copy";
+				}, 1200);
+			} finally {
+				copy.disabled = false;
+			}
+		});
+
+		pre.before(frame);
+		toolbar.append(language, copy);
+		frame.append(toolbar, pre);
+	}
+}
+
 export function initDynamicNote() {
 	const loading = document.querySelector<HTMLElement>("#dynamic-note-loading");
 	const article = document.querySelector<HTMLElement>("#dynamic-note");
@@ -45,7 +106,10 @@ export function initDynamicNote() {
 			if (meta) {
 				meta.textContent = `${new Date(note.published_at * 1000).toLocaleString("en-US")} · ${(note.tags || []).join(" · ")}`;
 			}
-			if (content) content.innerHTML = note.rendered_html;
+			if (content) {
+				content.innerHTML = note.rendered_html;
+				enhanceCodeBlocks(content);
+			}
 			document.title = `${note.title} - Cedrian Ian`;
 			const interactions =
 				wrapper.querySelector<HTMLElement>(".note-interactions");
