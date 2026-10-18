@@ -109,6 +109,27 @@ import MainGridLayout from "@layouts/MainGridLayout.astro";
 		text-shadow: none;
 	}
 
+	#dynamic-note-content :is(.hljs-keyword, .hljs-type) {
+		color: #a626a4;
+	}
+
+	#dynamic-note-content :is(.hljs-title, .hljs-built_in) {
+		color: #4078f2;
+	}
+
+	#dynamic-note-content :is(.hljs-string, .hljs-meta .hljs-string) {
+		color: #50a14f;
+	}
+
+	#dynamic-note-content :is(.hljs-number, .hljs-literal, .hljs-symbol, .hljs-meta) {
+		color: #986801;
+	}
+
+	#dynamic-note-content .hljs-comment {
+		color: #6a737d;
+		font-style: italic;
+	}
+
 	#dynamic-note-content .dynamic-code-block pre > code::before,
 	#dynamic-note-content .dynamic-code-block pre > code::after {
 		content: none;

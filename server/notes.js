@@ -1,4 +1,8 @@
 import katex from "katex";
+import highlight from "highlight.js/lib/core";
+import c from "highlight.js/lib/languages/c";
+import cpp from "highlight.js/lib/languages/cpp";
+import python from "highlight.js/lib/languages/python";
 import MarkdownIt from "markdown-it";
 import texmath from "markdown-it-texmath";
 
@@ -6,11 +10,22 @@ export const COMMENT_MAX_CHARACTERS = 500;
 export const COMMENT_LIMIT_PER_DAY = 4;
 export const COMMENT_WINDOW_SECONDS = 24 * 60 * 60;
 
+highlight.registerLanguage("python", python);
+highlight.registerLanguage("c", c);
+highlight.registerLanguage("cpp", cpp);
+
+function highlightCode(source, language) {
+	const name = String(language || "").trim().toLowerCase();
+	if (!highlight.getLanguage(name)) return "";
+	return highlight.highlight(source, { language: name }).value;
+}
+
 const markdown = new MarkdownIt({
 	html: false,
 	linkify: true,
 	typographer: false,
 	breaks: false,
+	highlight: highlightCode,
 }).use(texmath, {
 	engine: katex,
 	delimiters: "dollars",

@@ -54,6 +54,22 @@ assert.match(
 	renderMarkdown("$$\na^2 + b^2 = c^2\n$$"),
 	/class="katex-display"/u,
 );
+assert.match(
+	renderMarkdown("```python\nfor item in items:\n    print(item)\n```"),
+	/class="hljs-keyword"/u,
+);
+assert.match(
+	renderMarkdown("```c\nint main(void) { return 0; }\n```"),
+	/class="hljs-type"/u,
+);
+assert.match(
+	renderMarkdown("```cpp\nclass Example { public: int value; };\n```"),
+	/class="hljs-keyword"/u,
+);
+assert.doesNotMatch(
+	renderMarkdown("```javascript\nconst answer = 42;\n```"),
+	/class="hljs-/u,
+);
 const publishedNoteResponse = await getPublishedNote({
 	request: new Request(
 		"https://digvps.pages.dev/api/published-note?slug=test-note",
