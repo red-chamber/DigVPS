@@ -1,5 +1,6 @@
 ---
 import NoteInteractions from "@components/NoteInteractions.astro";
+import NoteTableOfContents from "@components/NoteTableOfContents.astro";
 import MainGridLayout from "@layouts/MainGridLayout.astro";
 ---
 
@@ -16,6 +17,7 @@ import MainGridLayout from "@layouts/MainGridLayout.astro";
 	<div id="dynamic-note-interactions" class="hidden">
 		<NoteInteractions noteKey="" />
 	</div>
+	<NoteTableOfContents slot="overlay" />
 </MainGridLayout>
 
 <style is:global>

@@ -1,0 +1,266 @@
+---
+import { Icon } from "astro-icon/components";
+---
+
+<note-table-of-contents id="note-toc" class="hidden">
+	<aside class="note-toc-rail hidden 2xl:block" aria-label="Table of contents">
+		<div class="note-toc-scroll">
+			<p class="note-toc-label">On This Page</p>
+			<nav data-note-toc-list></nav>
+		</div>
+	</aside>
+
+	<details class="note-toc-popup group/toc 2xl:hidden">
+		<summary
+			aria-label="Open table of contents"
+			class="btn-card ml-auto flex h-12 w-fit cursor-pointer list-none select-none items-center gap-2 rounded-full border border-[var(--line-color)] px-4 font-bold text-[var(--btn-content)] shadow-lg [&::-webkit-details-marker]:hidden"
+		>
+			<Icon name="material-symbols:format-list-bulleted-rounded" class="text-xl" />
+			<span>Contents</span>
+		</summary>
+		<div class="note-toc-scroll absolute bottom-14 right-0 max-h-[min(60vh,32rem)] w-[min(20rem,calc(100vw_-_2rem))] overflow-y-auto overflow-x-hidden rounded-[var(--radius-large)] border border-[var(--line-color)] bg-[var(--float-panel-bg)] p-2 shadow-xl backdrop-blur-[6px]">
+			<p class="note-toc-label">On This Page</p>
+			<nav data-note-toc-list></nav>
+		</div>
+	</details>
+</note-table-of-contents>
+
+<style is:global>
+	.note-toc-rail {
+		position: fixed;
+		top: 5.5rem;
+		left: calc(50% + var(--page-width) / 2 + 1rem);
+		width: min(15rem, calc((100vw - var(--page-width)) / 2 - 2rem));
+		max-height: calc(100vh - 7.5rem);
+		pointer-events: auto;
+	}
+
+	.note-toc-popup {
+		position: fixed;
+		right: 1rem;
+		bottom: 5.25rem;
+		z-index: 70;
+		pointer-events: auto;
+	}
+
+	.note-toc-scroll {
+		max-height: inherit;
+		overflow-y: auto;
+		overflow-x: hidden;
+		scrollbar-width: none;
+	}
+
+	.note-toc-scroll::-webkit-scrollbar {
+		display: none;
+	}
+
+	.note-toc-label {
+		padding: 0.5rem 0.75rem;
+		color: rgb(0 0 0 / 0.35);
+		font-size: 0.75rem;
+		font-weight: 700;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+	}
+
+	.note-toc-link {
+		display: flex;
+		min-height: 2.25rem;
+		align-items: flex-start;
+		gap: 0.5rem;
+		border-radius: 0.5rem;
+		padding: 0.5rem 0.5rem 0.5rem calc(0.5rem + var(--toc-level) * 0.7rem);
+		color: rgb(0 0 0 / 0.5);
+		font-size: 0.8125rem;
+		line-height: 1.35;
+		transition: color 180ms ease, background-color 180ms ease, padding 180ms ease;
+	}
+
+	.note-toc-link:hover,
+	.note-toc-link.active {
+		background: var(--btn-plain-bg-hover);
+		color: var(--primary);
+	}
+
+	.note-toc-link.active {
+		font-size: 0.9rem;
+		font-weight: 700;
+	}
+
+	.note-toc-marker {
+		width: 0.4rem;
+		height: 0.4rem;
+		margin-top: 0.35rem;
+		flex: none;
+		border-radius: 9999px;
+		background: rgb(0 0 0 / 0.16);
+		transition: background-color 180ms ease, transform 180ms ease;
+	}
+
+	.note-toc-link.active .note-toc-marker {
+		background: var(--primary);
+		transform: scale(1.25);
+	}
+
+	#dynamic-note-content :is(h1, h2, h3, h4, h5, h6) {
+		scroll-margin-top: 6rem;
+	}
+
+	@media (min-width: 768px) {
+		.note-toc-popup {
+			right: 2rem;
+			bottom: 6rem;
+		}
+	}
+</style>
+
+<script>
+	class NoteTableOfContents extends HTMLElement {
+		content: HTMLElement | null = null;
+		headings: HTMLElement[] = [];
+		entries: HTMLAnchorElement[] = [];
+		observer: MutationObserver | null = null;
+		animationFrame = 0;
+
+		connectedCallback() {
+			this.content = document.querySelector<HTMLElement>("#dynamic-note-content");
+			if (!this.content) return;
+			this.addEventListener("click", this.handleClick);
+			window.addEventListener("scroll", this.scheduleUpdate, { passive: true });
+			window.addEventListener("resize", this.scheduleUpdate, { passive: true });
+			this.observer = new MutationObserver(() => this.render());
+			this.observer.observe(this.content, { childList: true });
+			this.render();
+		}
+
+		disconnectedCallback() {
+			this.observer?.disconnect();
+			this.removeEventListener("click", this.handleClick);
+			window.removeEventListener("scroll", this.scheduleUpdate);
+			window.removeEventListener("resize", this.scheduleUpdate);
+			if (this.animationFrame) window.cancelAnimationFrame(this.animationFrame);
+		}
+
+		slugify(text: string, index: number) {
+			const normalized = text
+				.normalize("NFKC")
+				.toLocaleLowerCase()
+				.replace(/[^\p{Letter}\p{Number}]+/gu, "-")
+				.replace(/^-+|-+$/gu, "");
+			return `note-${normalized || `section-${index + 1}`}`;
+		}
+
+		render() {
+			if (!this.content) return;
+			this.headings = Array.from(
+				this.content.querySelectorAll<HTMLElement>("h1, h2, h3, h4, h5, h6"),
+			);
+			if (!this.headings.length) {
+				this.classList.add("hidden");
+				return;
+			}
+
+			const usedSlugs = new Map<string, number>();
+			const minDepth = Math.min(
+				...this.headings.map((heading) => Number(heading.tagName.slice(1))),
+			);
+			const items = this.headings.map((heading, index) => {
+				const text = heading.textContent?.trim() || `Section ${index + 1}`;
+				const baseSlug = heading.id || this.slugify(text, index);
+				const duplicate = usedSlugs.get(baseSlug) || 0;
+				usedSlugs.set(baseSlug, duplicate + 1);
+				const slug = duplicate ? `${baseSlug}-${duplicate + 1}` : baseSlug;
+				heading.id = slug;
+				return {
+					index,
+					level: Number(heading.tagName.slice(1)) - minDepth,
+					slug,
+					text,
+				};
+			});
+
+			for (const list of this.querySelectorAll<HTMLElement>("[data-note-toc-list]")) {
+				list.replaceChildren(
+					...items.map((item) => {
+						const link = document.createElement("a");
+						link.className = "note-toc-link";
+						link.href = `#${item.slug}`;
+						link.dataset.headingIndex = String(item.index);
+						link.style.setProperty("--toc-level", String(item.level));
+						const marker = document.createElement("span");
+						marker.className = "note-toc-marker";
+						const title = document.createElement("span");
+						title.textContent = item.text;
+						link.append(marker, title);
+						return link;
+					}),
+				);
+			}
+			this.entries = Array.from(
+				this.querySelectorAll<HTMLAnchorElement>(".note-toc-link"),
+			);
+			this.classList.remove("hidden");
+			this.updateActiveHeading();
+
+			const requestedSlug = decodeURIComponent(window.location.hash.slice(1));
+			const requestedHeading = this.headings.find(
+				(heading) => heading.id === requestedSlug,
+			);
+			if (requestedHeading) {
+				window.requestAnimationFrame(() => requestedHeading.scrollIntoView());
+			}
+		}
+
+		handleClick = (event: Event) => {
+			const link = (event.target as Element | null)?.closest<HTMLAnchorElement>(
+				"a[data-heading-index]",
+			);
+			if (!link) return;
+			const heading = this.headings[Number(link.dataset.headingIndex)];
+			if (!heading) return;
+			event.preventDefault();
+			history.pushState(null, "", `#${encodeURIComponent(heading.id)}`);
+			heading.scrollIntoView({
+				behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+					? "auto"
+					: "smooth",
+				block: "start",
+			});
+			this.querySelector("details")?.removeAttribute("open");
+		};
+
+		scheduleUpdate = () => {
+			if (this.animationFrame) return;
+			this.animationFrame = window.requestAnimationFrame(() => {
+				this.animationFrame = 0;
+				this.updateActiveHeading();
+			});
+		};
+
+		updateActiveHeading() {
+			if (!this.headings.length) return;
+			const readingLine = Math.max(96, window.innerHeight * 0.18);
+			let activeIndex = 0;
+			for (const [index, heading] of this.headings.entries()) {
+				if (heading.getBoundingClientRect().top > readingLine) break;
+				activeIndex = index;
+			}
+			if (
+				window.scrollY + window.innerHeight >=
+				document.documentElement.scrollHeight - 4
+			) {
+				activeIndex = this.headings.length - 1;
+			}
+			for (const entry of this.entries) {
+				const active = Number(entry.dataset.headingIndex) === activeIndex;
+				entry.classList.toggle("active", active);
+				if (active) entry.setAttribute("aria-current", "location");
+				else entry.removeAttribute("aria-current");
+			}
+		}
+	}
+
+	if (!customElements.get("note-table-of-contents")) {
+		customElements.define("note-table-of-contents", NoteTableOfContents);
+	}
+</script>

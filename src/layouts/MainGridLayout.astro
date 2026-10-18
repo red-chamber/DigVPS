@@ -18,10 +18,7 @@ interface Props {
 	description?: string;
 }
 
-const {
-	title,
-	description,
-} = Astro.props;
+const { title, description } = Astro.props;
 const hasBannerCredit =
 	siteConfig.banner.enable && siteConfig.banner.credit.enable;
 const hasBannerLink = !!siteConfig.banner.credit.url;
@@ -80,6 +77,7 @@ const mainPanelTop = siteConfig.banner.enable
                         <Footer></Footer>
                     </div>
                 </div>
+                <slot name="overlay"></slot>
             </main>
 
             <div class="footer col-span-2 onload-animation block lg:hidden">
