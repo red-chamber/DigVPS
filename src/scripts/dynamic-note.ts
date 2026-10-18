@@ -123,6 +123,9 @@ export function initDynamicNote() {
 				meta.textContent = `${new Date(note.published_at * 1000).toLocaleString("en-US")} · ${(note.tags || []).join(" · ")}`;
 			}
 			if (content) {
+				if (note.rendered_html.includes('class="katex')) {
+					await import("katex/dist/katex.css");
+				}
 				content.innerHTML = note.rendered_html;
 				enhanceCodeBlocks(content);
 				enhanceMathBlocks(content);

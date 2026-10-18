@@ -1,0 +1,70 @@
+---
+import { Icon } from "astro-icon/components";
+import I18nKey from "../i18n/i18nKey";
+import { i18n } from "../i18n/translation";
+---
+
+<div
+	id="search-bar"
+	class="hidden h-11 items-center rounded-lg bg-black/[0.04] transition-all hover:bg-black/[0.06] focus-within:bg-black/[0.06] lg:flex"
+>
+	<Icon name="material-symbols:search" class="pointer-events-none absolute ml-3 text-[1.25rem] text-black/30 transition" />
+	<input
+		id="search-input-desktop"
+		type="search"
+		aria-label={i18n(I18nKey.search)}
+		placeholder={i18n(I18nKey.search)}
+		class="h-full w-64 bg-transparent pl-10 text-sm text-black/50 outline-0 transition-all focus:w-72"
+	/>
+</div>
+
+<button
+	type="button"
+	aria-label="Search Panel"
+	id="search-switch"
+	class="btn-plain scale-animation h-11 w-11 rounded-lg active:scale-90 lg:!hidden"
+>
+	<Icon name="material-symbols:search" class="text-[1.25rem]" />
+</button>
+
+<div
+	id="search-panel"
+	class="float-panel float-panel-closed search-panel absolute left-4 right-4 top-20 rounded-2xl p-2 shadow-2xl md:left-[unset] md:w-[30rem]"
+>
+	<div
+		id="search-bar-inside"
+		class="relative flex h-11 items-center rounded-xl bg-black/[0.04] transition hover:bg-black/[0.06] focus-within:bg-black/[0.06] lg:hidden"
+	>
+		<Icon name="material-symbols:search" class="pointer-events-none absolute ml-3 text-[1.25rem] text-black/30 transition" />
+		<input
+			id="search-input-mobile"
+			type="search"
+			aria-label={i18n(I18nKey.search)}
+			placeholder={i18n(I18nKey.search)}
+			class="absolute inset-0 bg-transparent pl-10 text-sm text-black/50 outline-0"
+		/>
+	</div>
+	<div id="search-results"></div>
+</div>
+
+<template id="search-result-template">
+	<a class="group block rounded-xl px-3 py-2 text-lg transition first-of-type:mt-2 hover:bg-[var(--btn-plain-bg-hover)] active:bg-[var(--btn-plain-bg-active)] lg:first-of-type:mt-0">
+		<div class="inline-flex font-bold text-90 transition group-hover:text-[var(--primary)]">
+			<span data-search-title></span>
+			<Icon name="fa6-solid:chevron-right" class="my-auto translate-x-1 text-[0.75rem] text-[var(--primary)] transition" />
+		</div>
+		<div data-search-excerpt class="text-sm text-50 transition"></div>
+	</a>
+</template>
+
+<script>
+	import { initSearch } from "../scripts/search";
+	initSearch();
+</script>
+
+<style>
+	.search-panel {
+		max-height: calc(100vh - 100px);
+		overflow-y: auto;
+	}
+</style>

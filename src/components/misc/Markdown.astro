@@ -1,6 +1,6 @@
 ---
-import "@fontsource-variable/jetbrains-mono";
-import "@fontsource-variable/jetbrains-mono/wght-italic.css";
+import jetBrainsItalic from "@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-italic.woff2?url";
+import jetBrainsNormal from "@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2?url";
 
 interface Props {
 	class: string;
@@ -12,6 +12,24 @@ const className = Astro.props.class;
     <!--<div class="max-w-none custom-md">-->
     <slot/>
 </div>
+
+<style is:global define:vars={{ jetBrainsItalic: `url("${jetBrainsItalic}")`, jetBrainsNormal: `url("${jetBrainsNormal}")` }}>
+	@font-face {
+		font-family: "JetBrains Mono Variable";
+		font-style: normal;
+		font-display: swap;
+		font-weight: 100 800;
+		src: var(--jetBrainsNormal) format("woff2-variations");
+	}
+
+	@font-face {
+		font-family: "JetBrains Mono Variable";
+		font-style: italic;
+		font-display: swap;
+		font-weight: 100 800;
+		src: var(--jetBrainsItalic) format("woff2-variations");
+	}
+</style>
 
 <script>
 document.addEventListener("click", function (e: MouseEvent) {

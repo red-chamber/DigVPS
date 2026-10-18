@@ -129,8 +129,10 @@ export const onRequest = async (context) => {
 	let session;
 	let siteAccess;
 	try {
-		session = await getSession(context);
-		siteAccess = await loadSiteAccess(env.DB);
+		[session, siteAccess] = await Promise.all([
+			getSession(context),
+			loadSiteAccess(env.DB),
+		]);
 	} catch (error) {
 		console.error("Access middleware failed:", error.message);
 		if (pathname.startsWith("/api/")) {
