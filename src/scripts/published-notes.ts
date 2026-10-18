@@ -18,17 +18,8 @@ export interface PublishedNoteUpdate {
 	updated_at: number;
 }
 
-export interface DeletedStaticNoteSummary {
-	note_key: string;
-	title: string;
-	category: string;
-	tags: string[];
-	deleted_at: number;
-}
-
 interface PublishedNoteData {
 	notes: PublishedNoteSummary[];
-	deletedStaticNotes: DeletedStaticNoteSummary[];
 	deletedDynamicNotes: PublishedNoteSummary[];
 }
 
@@ -44,8 +35,6 @@ export function getPublishedNoteData() {
 				}
 				return {
 					notes: (result.notes || []) as PublishedNoteSummary[],
-					deletedStaticNotes: (result.deletedStaticNotes ||
-						[]) as DeletedStaticNoteSummary[],
 					deletedDynamicNotes: (result.deletedDynamicNotes ||
 						[]) as PublishedNoteSummary[],
 				};
@@ -60,10 +49,6 @@ export function getPublishedNoteData() {
 
 export async function getPublishedNotes() {
 	return (await getPublishedNoteData()).notes;
-}
-
-export async function getDeletedStaticNotes() {
-	return (await getPublishedNoteData()).deletedStaticNotes;
 }
 
 export function invalidatePublishedNotes() {

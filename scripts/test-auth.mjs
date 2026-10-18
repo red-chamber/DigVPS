@@ -11,6 +11,7 @@ import {
 	onRequestPost as publishTimelineEvent,
 } from "../functions/api/admin/timeline.js";
 import { onRequestPost as submitComment } from "../functions/api/note-comments.js";
+import { onRequestGet as getPublishedNote } from "../functions/api/published-note.js";
 import {
 	createSessionRecord,
 	derivePasswordHash,
@@ -23,9 +24,9 @@ import {
 	verifyPassword,
 } from "../server/auth.js";
 import {
+	prepareNoteDeletion,
 	renderMarkdown,
 	resolvePublishedNote,
-	prepareNoteDeletion,
 	unicodeLength,
 } from "../server/notes.js";
 
@@ -47,16 +48,63 @@ assert.match(randomVerificationCode(), /^\d{6}$/u);
 assert.equal(unicodeLength("a😀中"), 3);
 assert.match(renderMarkdown("# Hello"), /<h1>Hello<\/h1>/u);
 assert.match(renderMarkdown("<script>alert(1)</script>"), /&lt;script&gt;/u);
-assert.equal(
-	(await resolvePublishedNote({}, "static:notes/linux/全局"))?.type,
-	"static",
+assert.equal(await resolvePublishedNote({}, "legacy:test-note"), null);
+assert.match(renderMarkdown("Inline $x^2$"), /class="katex"/u);
+assert.match(
+	renderMarkdown("$$\na^2 + b^2 = c^2\n$$"),
+	/class="katex-display"/u,
 );
-assert.equal(await resolvePublishedNote({}, "static:notes/not-real"), null);
-const staticResolvedNote = await resolvePublishedNote(
-	{},
-	"static:notes/linux/全局",
+const publishedNoteResponse = await getPublishedNote({
+	request: new Request(
+		"https://digvps.pages.dev/api/published-note?slug=test-note",
+	),
+	env: {
+		DB: {
+			prepare() {
+				return {
+					bind() {
+						return this;
+					},
+					async first() {
+						return {
+							slug: "test-note",
+							title: "Test Note",
+							description: "Formula test",
+							category: "Math",
+							tags_json: '["Math"]',
+							markdown: "Inline $x^2$\n\n$$\ny = x + 1\n$$",
+							published_at: 100,
+							updated_at: 100,
+						};
+					},
+				};
+			},
+		},
+	},
+});
+assert.equal(publishedNoteResponse.status, 200);
+const publishedNoteBody = await publishedNoteResponse.json();
+assert.match(publishedNoteBody.note.rendered_html, /class="katex"/u);
+assert.match(publishedNoteBody.note.rendered_html, /class="katex-display"/u);
+const resolvedNote = await resolvePublishedNote(
+	{
+		prepare(sql) {
+			return {
+				sql,
+				bind(...values) {
+					this.values = values;
+					return this;
+				},
+				async first() {
+					return { slug: "test-note", title: "Test Note" };
+				},
+			};
+		},
+	},
+	"dynamic:test-note",
 );
-const staticDeletion = prepareNoteDeletion(
+assert.equal(resolvedNote?.slug, "test-note");
+const noteDeletion = prepareNoteDeletion(
 	{
 		prepare(sql) {
 			return {
@@ -68,12 +116,10 @@ const staticDeletion = prepareNoteDeletion(
 			};
 		},
 	},
-	staticResolvedNote,
-	"admin-1",
-	1_000,
+	resolvedNote,
 );
-assert.match(staticDeletion.statement.sql, /INSERT INTO deleted_static_notes/u);
-assert.equal(staticDeletion.statement.values[0], "static:notes/linux/全局");
+assert.match(noteDeletion.statement.sql, /UPDATE published_notes/u);
+assert.equal(noteDeletion.statement.values[0], "test-note");
 
 const session = await createSessionRecord("user-1", 1_000);
 assert.equal(session.expiresAt, 1_000 + SESSION_TTL_SECONDS);
@@ -387,63 +433,8 @@ assert.match(noteUpdateBatches[0][0].sql, /UPDATE published_notes/u);
 assert.match(noteUpdateBatches[0][1].sql, /UPDATE note_comments/u);
 assert.match(noteUpdateBatches[0][2].sql, /UPDATE note_likes/u);
 assert.match(noteUpdateBatches[0][3].sql, /INSERT INTO note_update_history/u);
-assert.ok(noteUpdateSql.some((sql) => /INSERT INTO user_activities/u.test(sql)));
-
-let staticConversionStatements = [];
-const staticConversionDb = {
-	prepare(sql) {
-		return {
-			sql,
-			bind(...values) {
-				this.values = values;
-				return this;
-			},
-			async first() {
-				return null;
-			},
-			async run() {
-				return { success: true, meta: { changes: 1 } };
-			},
-		};
-	},
-	async batch(statements) {
-		staticConversionStatements = statements;
-		return statements.map(() => ({ success: true, meta: { changes: 1 } }));
-	},
-};
-const staticConversion = await updateNote({
-	request: new Request("https://digvps.pages.dev/api/admin/notes", {
-		method: "PUT",
-		headers: {
-			Origin: "https://digvps.pages.dev",
-			"Content-Type": "application/json",
-		},
-		body: JSON.stringify({
-			noteKey: "static:notes/linux/全局",
-			title: "Linux 全局命令",
-			slug: "linux-global",
-			description: "Linux 全局命令摘要",
-			category: "Linux",
-			tags: ["Linux"],
-			markdown: "# Linux",
-		}),
-	}),
-	data: { user: { id: "admin-1", role: "admin" } },
-	env: { DB: staticConversionDb },
-});
-assert.equal(staticConversion.status, 200);
-assert.equal((await staticConversion.json()).noteKey, "dynamic:linux-global");
-assert.match(staticConversionStatements[0].sql, /INSERT INTO published_notes/u);
-assert.match(staticConversionStatements[1].sql, /INSERT INTO deleted_static_notes/u);
 assert.ok(
-	staticConversionStatements.some((statement) =>
-		/hidden_timeline_events/u.test(statement.sql),
-	),
-);
-assert.ok(
-	staticConversionStatements.some((statement) =>
-		/INSERT INTO note_update_history/u.test(statement.sql),
-	),
+	noteUpdateSql.some((sql) => /INSERT INTO user_activities/u.test(sql)),
 );
 
 const regularTimelinePublish = await publishTimelineEvent({
@@ -522,10 +513,9 @@ const timelineDeleteDb = {
 		};
 	},
 	async batch(statements) {
-		if (statements.length === 5) {
+		if (statements.length === 4) {
 			return [
 				{ results: [dynamicTimelineRow] },
-				{ results: [] },
 				{ results: [] },
 				{ results: [] },
 				{ results: [] },
@@ -573,7 +563,7 @@ const oversizedComment = await submitComment({
 			"Content-Type": "application/json",
 		},
 		body: JSON.stringify({
-			note: "static:notes/linux/全局",
+			note: "dynamic:test-note",
 			noteTitle: "Linux",
 			content: "字".repeat(501),
 		}),
@@ -591,7 +581,7 @@ const rateLimitedComment = await submitComment({
 			"Content-Type": "application/json",
 		},
 		body: JSON.stringify({
-			note: "static:notes/linux/全局",
+			note: "dynamic:test-note",
 			noteTitle: "Linux",
 			content: "第五条评论",
 		}),
@@ -599,11 +589,14 @@ const rateLimitedComment = await submitComment({
 	data: { user: { id: "user-1", email: "reader@example.com", role: "user" } },
 	env: {
 		DB: {
-			prepare() {
+			prepare(sql) {
 				return {
 					bind() {
 						return {
-							first: async () => null,
+							first: async () =>
+								sql.includes("FROM published_notes")
+									? { slug: "test-note", title: "Test Note" }
+									: null,
 							run: async () => ({ meta: { changes: 0 } }),
 						};
 					},

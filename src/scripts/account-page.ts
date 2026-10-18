@@ -1,5 +1,5 @@
-import { invalidatePublishedNotes } from "./published-notes";
 import { initPublishedNoteTaxonomy } from "./published-note-taxonomy";
+import { invalidatePublishedNotes } from "./published-notes";
 import { invalidateTimelineData } from "./timeline-data";
 
 const boundLogoutButtons = new WeakSet<HTMLButtonElement>();
@@ -274,18 +274,15 @@ interface PendingComment {
 
 interface AdminNote {
 	key: string;
-	type: "static" | "dynamic";
 	title: string;
 	description: string;
 	category: string;
 	tags: string[];
-	publishedAt?: number | null;
 	path: string;
 }
 
 interface EditableAdminNote {
 	key: string;
-	type: "static" | "dynamic";
 	title: string;
 	slug: string;
 	description: string;
@@ -310,13 +307,12 @@ function noteFormPayload(form: HTMLFormElement) {
 	};
 }
 
-function setNoteFormValue(
-	form: HTMLFormElement,
-	name: string,
-	value: string,
-) {
+function setNoteFormValue(form: HTMLFormElement, name: string, value: string) {
 	const control = form.elements.namedItem(name);
-	if (control instanceof HTMLInputElement || control instanceof HTMLTextAreaElement) {
+	if (
+		control instanceof HTMLInputElement ||
+		control instanceof HTMLTextAreaElement
+	) {
 		control.value = value;
 	}
 }
@@ -343,10 +339,7 @@ function populateNoteEditor(root: HTMLElement, note: EditableAdminNote) {
 	setNoteFormValue(form, "markdown", note.markdown);
 	const hint = root.querySelector<HTMLElement>("#admin-note-edit-hint");
 	if (hint) {
-		hint.textContent =
-			note.type === "static"
-				? "这是仓库笔记；发布更新后将转为在线笔记。Slug 须改为英文小写格式。"
-				: `正在编辑：${note.title}`;
+		hint.textContent = `正在编辑：${note.title}`;
 	}
 	setAdminMessage(
 		root.querySelector<HTMLElement>("#admin-note-edit-message"),
@@ -361,14 +354,12 @@ interface AdminTimelineEvent {
 	title: string;
 	date: number;
 	action: "published" | "updated" | "activity";
-	source: "static" | "dynamic" | "archived" | "custom";
+	source: "dynamic" | "custom";
 	available: boolean;
 }
 
 const timelineSourceLabels: Record<AdminTimelineEvent["source"], string> = {
-	static: "仓库笔记",
 	dynamic: "在线笔记",
-	archived: "历史笔记",
 	custom: "手动活动",
 };
 
@@ -388,8 +379,7 @@ function renderAdminTimeline(root: HTMLElement, events: AdminTimelineEvent[]) {
 		const article = document.createElement("article");
 		article.dataset.timelineEventId = event.id;
 		article.dataset.deletesNote = String(
-			event.available &&
-				(event.source === "static" || event.source === "dynamic"),
+			event.available && event.source === "dynamic",
 		);
 		article.className =
 			"flex flex-col gap-3 rounded-xl border border-[var(--line-color)] bg-white/45 px-4 py-3 sm:flex-row sm:items-center sm:justify-between";
@@ -483,7 +473,7 @@ function renderAdminNotes(root: HTMLElement, notes: AdminNote[]) {
 		const meta = document.createElement("p");
 		meta.className = "mt-1 truncate text-xs text-black/45";
 		meta.textContent = [
-			note.type === "dynamic" ? "在线发布" : "仓库笔记",
+			"在线发布",
 			note.category || "未分类",
 			...note.tags.map((tag) => `#${tag}`),
 		].join(" · ");
@@ -649,7 +639,8 @@ function bindAdminTools(root: HTMLElement) {
 		if (!button) return;
 		const article = button.closest<HTMLElement>("[data-timeline-event-id]");
 		const eventId = article?.dataset.timelineEventId;
-		const title = article?.querySelector("p")?.textContent?.trim() || "这条活动";
+		const title =
+			article?.querySelector("p")?.textContent?.trim() || "这条活动";
 		if (!eventId) return;
 		const deletesNote = article.dataset.deletesNote === "true";
 		const confirmation = deletesNote
@@ -791,7 +782,10 @@ function bindAdminTools(root: HTMLElement) {
 			initPublishedNoteTaxonomy();
 			closeNoteEditor(root);
 			await Promise.all([loadAdminNotes(root), loadAdminTimeline(root)]);
-			setAdminMessage(notesMessage, `已更新“${result.title}”，时间线记录已生成。`);
+			setAdminMessage(
+				notesMessage,
+				`已更新“${result.title}”，时间线记录已生成。`,
+			);
 			if (notesMessage) {
 				const link = document.createElement("a");
 				link.href = result.path;
@@ -901,9 +895,7 @@ function bindAdminTools(root: HTMLElement) {
 	);
 	timelineForm?.addEventListener("submit", async (event) => {
 		event.preventDefault();
-		const title = root.querySelector<HTMLInputElement>(
-			"#admin-timeline-title",
-		);
+		const title = root.querySelector<HTMLInputElement>("#admin-timeline-title");
 		const submit = root.querySelector<HTMLButtonElement>(
 			"#admin-timeline-submit",
 		);
@@ -950,9 +942,7 @@ export function initAccountPage() {
 	const adminSections = root.querySelectorAll<HTMLElement>(
 		"[data-admin-section]",
 	);
-	const adminNavigation = root.querySelector<HTMLElement>(
-		"#admin-section-nav",
-	);
+	const adminNavigation = root.querySelector<HTMLElement>("#admin-section-nav");
 
 	if (logout && !boundLogoutButtons.has(logout)) {
 		boundLogoutButtons.add(logout);

@@ -2,32 +2,11 @@
 import { onMount } from "svelte";
 import { getPublishedNoteData } from "../scripts/published-notes";
 import { getTimelineData } from "../scripts/timeline-data";
-import { getPostUrlBySlug } from "../utils/url-utils";
-
-export let tags: string[] = [];
-export let categories: string[] = [];
-export let sortedPosts: Post[] = [];
-export let archivedEntries: TimelineEntry[] = [];
 
 const params = new URLSearchParams(window.location.search);
-tags = params.has("tag") ? params.getAll("tag") : [];
-categories = params.has("category") ? params.getAll("category") : [];
+const tags = params.has("tag") ? params.getAll("tag") : [];
+const categories = params.has("category") ? params.getAll("category") : [];
 const uncategorized = params.get("uncategorized");
-
-interface Post {
-	slug: string;
-	data: {
-		title: string;
-		tags: string[];
-		category?: string | null;
-		published: Date;
-		updated?: Date;
-		history?: {
-			date: Date;
-			action: "published" | "updated";
-		}[];
-	};
-}
 
 interface TimelineEntry {
 	id: string;
@@ -54,55 +33,13 @@ function formatDate(date: Date) {
 	return `${month}-${day}`;
 }
 
-function asDate(date: Date | string) {
-	return date instanceof Date ? date : new Date(date);
-}
-
-function entriesForPost(post: Post): TimelineEntry[] {
-	const candidates: {
-		date: Date;
-		action: "published" | "updated";
-	}[] = [
-		{ date: post.data.published, action: "published" as const },
-		...(post.data.history || []),
-	];
-
-	if (
-		post.data.updated &&
-		asDate(post.data.updated).getTime() !==
-			asDate(post.data.published).getTime()
-	) {
-		candidates.push({ date: post.data.updated, action: "updated" });
-	}
-
-	const seen = new Set<string>();
-	return candidates
-		.map((event) => ({ ...event, date: asDate(event.date) }))
-		.filter((event) => {
-			const key = `${event.action}:${event.date.toISOString()}`;
-			if (seen.has(key)) return false;
-			seen.add(key);
-			return true;
-		})
-		.map((event) => ({
-			id: `${post.slug}:${event.action}:${event.date.toISOString()}`,
-			title: post.data.title,
-			tags: post.data.tags,
-			category: post.data.category,
-			date: event.date,
-			action: event.action,
-			available: true,
-			slug: post.slug,
-		}));
-}
-
 function formatTag(tagList: string[]) {
 	return tagList.map((t) => `#${t}`).join(" ");
 }
 
 function entryHref(entry: TimelineEntry) {
 	if (!entry.available) return undefined;
-	return entry.url || (entry.slug ? getPostUrlBySlug(entry.slug) : undefined);
+	return entry.url;
 }
 
 function actionLabel(action: TimelineEntry["action"]) {
@@ -113,13 +50,10 @@ function actionLabel(action: TimelineEntry["action"]) {
 
 onMount(async () => {
 	let dynamicEntries: TimelineEntry[] = [];
-	let deletedKeys = new Set<string>();
 	let customEntries: TimelineEntry[] = [];
 	let hiddenEventIds = new Set<string>();
 	try {
-		const { notes, deletedStaticNotes, deletedDynamicNotes } =
-			await getPublishedNoteData();
-		deletedKeys = new Set(deletedStaticNotes.map((note) => note.note_key));
+		const { notes, deletedDynamicNotes } = await getPublishedNoteData();
 		dynamicEntries = notes.flatMap((note) => {
 			const published = new Date(note.published_at * 1000);
 			const entries: TimelineEntry[] = [
@@ -185,14 +119,8 @@ onMount(async () => {
 	} catch (error) {
 		console.error("Failed to load the public timeline.", error);
 	}
-	const staticEntries = sortedPosts.flatMap(entriesForPost).map((entry) => ({
-		...entry,
-		available: !deletedKeys.has(`static:${entry.slug}`),
-	}));
 	let filteredEntries: TimelineEntry[] = [
-		...staticEntries,
 		...dynamicEntries,
-		...archivedEntries.map((entry) => ({ ...entry, date: asDate(entry.date) })),
 		...customEntries,
 	]
 		.filter((entry) => !hiddenEventIds.has(entry.id))

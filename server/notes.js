@@ -1,5 +1,6 @@
+import katex from "katex";
 import MarkdownIt from "markdown-it";
-import { STATIC_NOTES } from "./static-notes.js";
+import texmath from "markdown-it-texmath";
 
 export const COMMENT_MAX_CHARACTERS = 500;
 export const COMMENT_LIMIT_PER_DAY = 4;
@@ -10,6 +11,13 @@ const markdown = new MarkdownIt({
 	linkify: true,
 	typographer: false,
 	breaks: false,
+}).use(texmath, {
+	engine: katex,
+	delimiters: "dollars",
+	katexOptions: {
+		throwOnError: false,
+		trust: false,
+	},
 });
 
 export function renderMarkdown(source) {
@@ -33,21 +41,6 @@ export function validPublishedNoteSlug(value) {
 
 export async function resolvePublishedNote(db, noteKey) {
 	const key = String(noteKey || "");
-	if (key.startsWith("static:")) {
-		const slug = key.slice("static:".length);
-		const metadata = STATIC_NOTES.get(slug);
-		if (!metadata) return null;
-		if (db?.prepare) {
-			const deleted = await db
-				.prepare(
-					"SELECT note_key FROM deleted_static_notes WHERE note_key = ?1",
-				)
-				.bind(key)
-				.first();
-			if (deleted) return null;
-		}
-		return { key, slug, title: metadata.title, type: "static", metadata };
-	}
 	if (!key.startsWith("dynamic:")) return null;
 	const slug = key.slice("dynamic:".length);
 	if (!validPublishedNoteSlug(slug)) return null;
@@ -60,44 +53,22 @@ export async function resolvePublishedNote(db, noteKey) {
 		)
 		.bind(slug)
 		.first();
-	return note ? { key, slug, type: "dynamic", note } : null;
+	return note ? { key, slug, note } : null;
 }
 
 export function publicNotePath(resolved) {
-	return resolved.type === "dynamic"
-		? `/notes/read/?slug=${encodeURIComponent(resolved.slug)}`
-		: `/posts/${resolved.slug}/`;
+	return `/notes/read/?slug=${encodeURIComponent(resolved.slug)}`;
 }
 
-export function prepareNoteDeletion(db, resolved, deletedBy, deletedAt) {
-	const statement =
-		resolved.type === "dynamic"
-			? db
-					.prepare(
-						"UPDATE published_notes SET status = 'archived' WHERE slug = ?1 AND status = 'published'",
-					)
-					.bind(resolved.slug)
-			: db
-					.prepare(
-						`INSERT INTO deleted_static_notes
-						 (note_key, title, category, tags_json, deleted_by, deleted_at)
-						 VALUES (?1, ?2, ?3, ?4, ?5, ?6)
-						 ON CONFLICT(note_key) DO NOTHING`,
-					)
-					.bind(
-						resolved.key,
-						resolved.metadata.title,
-						resolved.metadata.category,
-						JSON.stringify(resolved.metadata.tags),
-						deletedBy,
-						deletedAt,
-					);
+export function prepareNoteDeletion(db, resolved) {
+	const statement = db
+		.prepare(
+			"UPDATE published_notes SET status = 'archived' WHERE slug = ?1 AND status = 'published'",
+		)
+		.bind(resolved.slug);
 	return {
 		statement,
-		title:
-			resolved.type === "dynamic"
-				? resolved.note.title
-				: resolved.metadata.title,
+		title: resolved.note.title,
 		path: publicNotePath(resolved),
 	};
 }

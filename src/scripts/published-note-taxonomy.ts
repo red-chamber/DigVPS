@@ -24,7 +24,6 @@ function createCategoryLink(name: string, count: number) {
 	label.textContent = name;
 	const badge = document.createElement("div");
 	badge.dataset.categoryCount = "";
-	badge.dataset.staticCount = "0";
 	badge.className =
 		"ml-4 flex h-7 min-w-[2rem] items-center justify-center rounded-lg bg-[var(--btn-regular-bg)] px-2 text-sm font-bold text-[var(--btn-content)]";
 	badge.textContent = String(count);
@@ -48,6 +47,7 @@ export function initPublishedNoteTaxonomy() {
 	const categories = document.querySelector<HTMLElement>("#categories");
 	const tags = document.querySelector<HTMLElement>("#tags");
 	if (!categories || !tags) return;
+	const tagList = tags.querySelector<HTMLElement>(":scope > div") || tags;
 	if (runningTaxonomies.has(categories)) {
 		pendingTaxonomies.add(categories);
 		return;
@@ -55,31 +55,7 @@ export function initPublishedNoteTaxonomy() {
 	runningTaxonomies.add(categories);
 	void (async () => {
 		try {
-			const { notes, deletedStaticNotes } = await getPublishedNoteData();
-			const deletedKeys = new Set(
-				deletedStaticNotes.map((note) => note.note_key),
-			);
-			for (const card of document.querySelectorAll<HTMLElement>(
-				"[data-static-note-key]",
-			)) {
-				if (deletedKeys.has(card.dataset.staticNoteKey || "")) {
-					const separator = card.nextElementSibling;
-					card.remove();
-					if (separator?.classList.contains("border-dashed")) {
-						separator.remove();
-					}
-				} else {
-					card.classList.remove("hidden");
-				}
-			}
-			const hasPostCards = Boolean(
-				document.querySelector("main [data-post-card]"),
-			);
-			for (const pagination of document.querySelectorAll<HTMLElement>(
-				"[data-post-pagination]",
-			)) {
-				pagination.classList.toggle("hidden", !hasPostCards);
-			}
+			const { notes } = await getPublishedNoteData();
 			const categoryCounts = new Map<string, { name: string; count: number }>();
 			const tagCounts = new Map<string, { name: string; count: number }>();
 			for (const note of notes) {
@@ -105,31 +81,10 @@ export function initPublishedNoteTaxonomy() {
 					categories.querySelectorAll<HTMLElement>("[data-category-name]"),
 				).map((link) => [normalized(link.dataset.categoryName || ""), link]),
 			);
-			const deletedCategoryCounts = new Map<string, number>();
-			const deletedTagCounts = new Map<string, number>();
-			for (const note of deletedStaticNotes) {
-				const key = normalized(note.category);
-				deletedCategoryCounts.set(
-					key,
-					(deletedCategoryCounts.get(key) || 0) + 1,
-				);
-				for (const tag of note.tags) {
-					const tagKey = normalized(tag);
-					deletedTagCounts.set(
-						tagKey,
-						(deletedTagCounts.get(tagKey) || 0) + 1,
-					);
-				}
-			}
 			for (const [key, link] of categoryLinks) {
 				const badge = link.querySelector<HTMLElement>("[data-category-count]");
 				if (!badge) continue;
-				const staticCount = Math.max(
-					0,
-					Number(badge.dataset.staticCount || 0) -
-						(deletedCategoryCounts.get(key) || 0),
-				);
-				const count = staticCount + (categoryCounts.get(key)?.count || 0);
+				const count = categoryCounts.get(key)?.count || 0;
 				if (count === 0) link.remove();
 				else badge.textContent = String(count);
 			}
@@ -146,17 +101,12 @@ export function initPublishedNoteTaxonomy() {
 				),
 			);
 			for (const [key, link] of existingTags) {
-				const staticCount = Math.max(
-					0,
-					Number(link.dataset.staticCount || 0) -
-						(deletedTagCounts.get(key) || 0),
-				);
-				if (staticCount + (tagCounts.get(key)?.count || 0) === 0) {
+				if ((tagCounts.get(key)?.count || 0) === 0) {
 					link.remove();
 				}
 			}
 			for (const [key, item] of tagCounts) {
-				if (!existingTags.has(key)) tags.append(createTagLink(item.name));
+				if (!existingTags.has(key)) tagList.append(createTagLink(item.name));
 			}
 			categories
 				.closest("widget-layout")
@@ -168,7 +118,10 @@ export function initPublishedNoteTaxonomy() {
 				.closest("widget-layout")
 				?.classList.toggle("hidden", !tags.querySelector("[data-tag-name]"));
 		} catch (error) {
-			console.error("Failed to load published-note categories and tags.", error);
+			console.error(
+				"Failed to load published-note categories and tags.",
+				error,
+			);
 		} finally {
 			runningTaxonomies.delete(categories);
 			if (pendingTaxonomies.delete(categories)) initPublishedNoteTaxonomy();

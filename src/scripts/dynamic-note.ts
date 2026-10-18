@@ -63,6 +63,21 @@ function enhanceCodeBlocks(content: HTMLElement) {
 	}
 }
 
+function enhanceMathBlocks(content: HTMLElement) {
+	for (const formula of content.querySelectorAll<HTMLElement>(
+		".katex-display",
+	)) {
+		if (formula.parentElement?.classList.contains("katex-display-container")) {
+			continue;
+		}
+		const container = document.createElement("div");
+		container.className = "katex-display-container";
+		container.setAttribute("aria-label", "Scrollable mathematical formula");
+		formula.before(container);
+		container.append(formula);
+	}
+}
+
 export function initDynamicNote() {
 	const loading = document.querySelector<HTMLElement>("#dynamic-note-loading");
 	const article = document.querySelector<HTMLElement>("#dynamic-note");
@@ -87,7 +102,8 @@ export function initDynamicNote() {
 				{ cache: "no-store" },
 			);
 			const result = await response.json();
-			if (!response.ok) throw new Error(result.error || "Failed to load the note.");
+			if (!response.ok)
+				throw new Error(result.error || "Failed to load the note.");
 			const note = result.note;
 			const title = article.querySelector<HTMLElement>("#dynamic-note-title");
 			const description = article.querySelector<HTMLElement>(
@@ -109,6 +125,7 @@ export function initDynamicNote() {
 			if (content) {
 				content.innerHTML = note.rendered_html;
 				enhanceCodeBlocks(content);
+				enhanceMathBlocks(content);
 			}
 			document.title = `${note.title} - Cedrian Ian`;
 			const interactions =

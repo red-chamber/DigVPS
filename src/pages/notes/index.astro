@@ -1,45 +1,6 @@
 ---
-import { getCollection } from "astro:content";
 import MainGridLayout from "@layouts/MainGridLayout.astro";
-import { getPostUrlBySlug } from "@utils/url-utils";
 import { Icon } from "astro-icon/components";
-
-const notes = (
-	await getCollection("posts", ({ data }) => Boolean(data.sourcePath))
-).sort((a, b) =>
-	a.data.sourcePath.localeCompare(b.data.sourcePath, "zh-CN", {
-		numeric: true,
-	}),
-);
-
-type Note = (typeof notes)[number];
-type NoteSection = {
-	label: string;
-	slug: string;
-	order: number;
-	notes: Note[];
-};
-
-const sections = Array.from(
-	notes.reduce<Map<string, NoteSection>>((map, note) => {
-		const existing = map.get(note.data.sectionSlug) || {
-			label: note.data.section,
-			slug: note.data.sectionSlug,
-			order: note.data.sectionOrder,
-			notes: [],
-		};
-		existing.notes.push(note);
-		map.set(note.data.sectionSlug, existing);
-		return map;
-	}, new Map<string, NoteSection>()),
-)
-	.map(([, section]) => section)
-	.sort((a, b) => a.order - b.order);
-
-function directoryLabel(sourcePath: string) {
-	const parts = sourcePath.split("/").slice(1, -1);
-	return parts.join(" / ");
-}
 ---
 
 <MainGridLayout title="Learning Notes" description="Computer science notes and practical records">
@@ -50,47 +11,17 @@ function directoryLabel(sourcePath: string) {
 			</div>
 			<div>
 				<h1 class="font-serif font-bold text-3xl text-black/90 dark:text-white/90">Learning Notes</h1>
-				<p class="text-black/50 dark:text-white/50 mt-1">Organized by field · <span id="notes-total-count" data-static-count={notes.length}>{notes.length} {notes.length === 1 ? "note" : "notes"}</span></p>
+				<p class="text-black/50 dark:text-white/50 mt-1">Organized by field · <span id="notes-total-count">0 notes</span></p>
 			</div>
 		</div>
-		<nav id="notes-category-nav" aria-label="Note categories" class="flex flex-wrap gap-2 mt-5">
-			{sections.map((section) => (
-				<a href={`#${section.slug}`} data-note-category={section.label} class="btn-regular rounded-lg px-3 py-2 text-sm font-medium">
-					{section.label}<span class="note-category-nav-count ml-1.5 text-black/35 dark:text-white/35" data-static-count={section.notes.length}>{section.notes.length}</span>
-				</a>
-			))}
-		</nav>
+		<nav id="notes-category-nav" aria-label="Note categories" class="flex flex-wrap gap-2 mt-5"></nav>
 		<div id="notes-active-filter" class="mt-5 hidden items-center justify-between gap-3 rounded-lg border border-[var(--line-color)] bg-white/40 px-4 py-3 text-sm text-black/60">
 			<span id="notes-active-filter-label"></span>
 			<a href="/notes/" class="shrink-0 font-bold text-[var(--primary)] hover:underline">Show all notes</a>
 		</div>
 	</div>
 
-	{sections.map((section) => (
-		<section id={section.slug} data-note-category={section.label} data-static-count={section.notes.length} class="note-category-section card-base px-6 py-6 md:px-9 md:py-7 mb-4 scroll-mt-24 onload-animation">
-			<div class="flex items-baseline justify-between gap-4 border-b border-[var(--line-divider)] pb-3 mb-2">
-				<h2 class="font-serif font-bold text-2xl text-black/85 dark:text-white/85">{section.label}</h2>
-				<span class="note-category-count text-sm text-black/40 dark:text-white/40 whitespace-nowrap">{section.notes.length} {section.notes.length === 1 ? "note" : "notes"}</span>
-			</div>
-			<div class="note-category-list divide-y divide-[var(--line-divider)]">
-				{section.notes.map((note) => {
-					const directory = directoryLabel(note.data.sourcePath);
-					return (
-						<a href={getPostUrlBySlug(note.slug)} data-static-note-key={`static:${note.slug}`} data-note-category={note.data.category || ""} data-note-tags={JSON.stringify(note.data.tags)} class="group flex items-center justify-between gap-4 py-3.5 rounded-md hover:px-3 hover:bg-[var(--btn-plain-bg-hover)] transition-all">
-							<div class="min-w-0">
-								<div class="font-medium text-base text-black/75 dark:text-white/75 group-hover:text-[var(--primary)] transition-colors">
-									{note.data.title}
-								</div>
-								{directory && <div class="text-xs text-black/35 dark:text-white/35 mt-1 truncate">{directory}</div>}
-							</div>
-							<Icon name="material-symbols:chevron-right-rounded" class="text-xl shrink-0 text-black/25 dark:text-white/25 group-hover:text-[var(--primary)] transition-colors" />
-						</a>
-					);
-				})}
-			</div>
-		</section>
-	))}
-
+	<div id="notes-list"></div>
 	<p id="notes-empty-filter" class="card-base mb-4 hidden px-6 py-5 text-center text-black/50">No notes match this filter.</p>
 	<p id="dynamic-notes-error" class="card-base mb-4 hidden px-6 py-5 text-red-700"></p>
 </MainGridLayout>

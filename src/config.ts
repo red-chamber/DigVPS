@@ -1,6 +1,5 @@
 import type {
 	ExpressiveCodeConfig,
-	LicenseConfig,
 	NavBarConfig,
 	ProfileConfig,
 	SiteConfig,
@@ -24,10 +23,6 @@ export const siteConfig: SiteConfig = {
 			text: "", // Credit text to be displayed
 			url: "", // (Optional) URL link to the original artwork or artist's page
 		},
-	},
-	toc: {
-		enable: true, // Display the table of contents on the right side of the post
-		depth: 6, // Maximum heading depth to show in the table, from 1 to 6
 	},
 	favicon: [
 		{ src: "/favicon/favicon.svg", sizes: "any" },
@@ -64,12 +59,6 @@ export const profileConfig: ProfileConfig = {
 			url: "https://github.com/red-chamber/",
 		},
 	],
-};
-
-export const licenseConfig: LicenseConfig = {
-	enable: true,
-	name: "CC BY-NC-SA 4.0",
-	url: "https://creativecommons.org/licenses/by-nc-sa/4.0/",
 };
 
 export const expressiveCodeConfig: ExpressiveCodeConfig = {

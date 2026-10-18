@@ -2,30 +2,27 @@ import { json } from "../../server/auth.js";
 
 export async function onRequestGet(context) {
 	try {
-		const [result, deletedResult, archivedResult, updateHistoryResult] =
+		const [result, archivedResult, updateHistoryResult] =
 			await context.env.DB.batch([
-			context.env.DB.prepare(
-				`SELECT id, slug, title, description, category, tags_json,
+				context.env.DB.prepare(
+					`SELECT id, slug, title, description, category, tags_json,
 				        published_at, updated_at
 				 FROM published_notes
 				 WHERE status = 'published'
 				 ORDER BY published_at DESC, slug ASC`,
-			),
-			context.env.DB.prepare(
-				"SELECT note_key, title, category, tags_json, deleted_at FROM deleted_static_notes",
-			),
-			context.env.DB.prepare(
-				`SELECT id, slug, title, category, tags_json, published_at, updated_at
+				),
+				context.env.DB.prepare(
+					`SELECT id, slug, title, category, tags_json, published_at, updated_at
 				 FROM published_notes
 				 WHERE status = 'archived'
 				 ORDER BY published_at DESC, slug ASC`,
-			),
-			context.env.DB.prepare(
-				`SELECT event_id, note_id, slug, title, category, tags_json, updated_at
+				),
+				context.env.DB.prepare(
+					`SELECT event_id, note_id, slug, title, category, tags_json, updated_at
 				 FROM note_update_history
 				 ORDER BY updated_at ASC, event_id ASC`,
-			),
-		]);
+				),
+			]);
 		const historyByNote = new Map();
 		for (const update of updateHistoryResult.results || []) {
 			const history = historyByNote.get(update.note_id) || [];
@@ -48,15 +45,16 @@ export async function onRequestGet(context) {
 			};
 		};
 		const notes = (result.results || []).map(noteSummary);
-		const deletedStaticNotes = (deletedResult.results || []).map((note) => ({
-			...note,
-			tags: JSON.parse(note.tags_json || "[]"),
-			tags_json: undefined,
-		}));
 		const deletedDynamicNotes = (archivedResult.results || []).map(noteSummary);
-		return json({ notes, deletedStaticNotes, deletedDynamicNotes });
+		return json({ notes, deletedDynamicNotes });
 	} catch (error) {
 		console.error("Published notes lookup failed:", error.message);
-		return json({ error: "Failed to load the note list. Confirm that the database migration has been applied." }, 500);
+		return json(
+			{
+				error:
+					"Failed to load the note list. Confirm that the database migration has been applied.",
+			},
+			500,
+		);
 	}
 }

@@ -1,5 +1,5 @@
 import { json } from "../../server/auth.js";
-import { validPublishedNoteSlug } from "../../server/notes.js";
+import { renderMarkdown, validPublishedNoteSlug } from "../../server/notes.js";
 
 export async function onRequestGet(context) {
 	const slug = new URL(context.request.url).searchParams.get("slug") || "";
@@ -8,23 +8,31 @@ export async function onRequestGet(context) {
 	}
 	try {
 		const note = await context.env.DB.prepare(
-			`SELECT slug, title, description, category, tags_json, rendered_html,
+			`SELECT slug, title, description, category, tags_json, markdown,
 			        published_at, updated_at
 			 FROM published_notes
 			 WHERE slug = ?1 AND status = 'published'`,
 		)
 			.bind(slug)
 			.first();
-		if (!note) return json({ error: "The note does not exist or has not been published." }, 404);
+		if (!note)
+			return json(
+				{ error: "The note does not exist or has not been published." },
+				404,
+			);
+		const { markdown, tags_json: tagsJson, ...summary } = note;
 		return json({
 			note: {
-				...note,
-				tags: JSON.parse(note.tags_json || "[]"),
-				tags_json: undefined,
+				...summary,
+				tags: JSON.parse(tagsJson || "[]"),
+				rendered_html: renderMarkdown(markdown),
 			},
 		});
 	} catch (error) {
 		console.error("Published note lookup failed:", error.message);
-		return json({ error: "Failed to load the note. Please try again later." }, 500);
+		return json(
+			{ error: "Failed to load the note. Please try again later." },
+			500,
+		);
 	}
 }

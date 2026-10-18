@@ -3,18 +3,9 @@ import ArchivePanel from "@components/ArchivePanel.svelte";
 import I18nKey from "@i18n/i18nKey";
 import { i18n } from "@i18n/translation";
 import MainGridLayout from "@layouts/MainGridLayout.astro";
-import archivedNoteHistory from "../data/note-history.json";
-import { getSortedPostsList } from "../utils/content-utils";
-
-const sortedPostsList = await getSortedPostsList();
-const archivedEntries = archivedNoteHistory.map((entry) => ({
-	...entry,
-	date: new Date(entry.date),
-	action: entry.action as "published" | "updated",
-}));
 ---
 
 <MainGridLayout title={i18n(I18nKey.archive)}>
-    <ArchivePanel sortedPosts={sortedPostsList} archivedEntries={archivedEntries} client:only="svelte"></ArchivePanel>
+    <ArchivePanel client:only="svelte"></ArchivePanel>
 </MainGridLayout>
 
