@@ -190,6 +190,7 @@ import {initDynamicNote} from "../scripts/dynamic-note";
 import {initNoteInteractions} from "../scripts/note-interactions";
 import {initNotesIndex} from "../scripts/notes-index";
 import {initPublishedNoteTaxonomy} from "../scripts/published-note-taxonomy";
+import {startSiteAccessMonitor} from "../scripts/site-access";
 import {
 	BANNER_HEIGHT,
 	BANNER_HEIGHT_HOME,
@@ -364,6 +365,7 @@ function init() {
 
 /* Load settings when entering the site */
 init();
+startSiteAccessMonitor();
 
 const setup = () => {
 	// TODO: temp solution to change the height of the banner

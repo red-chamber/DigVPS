@@ -5,6 +5,7 @@ import {
 	sha256,
 	timingSafeEqual,
 } from "../server/auth.js";
+import { loadSiteAccess } from "../server/site-access.js";
 
 const LEGACY_USERNAME = "root";
 const LEGACY_PASSWORD_SHA256 = "b3rBgj2oHS5S0aFUnuachbv4u1bQZoKEnnwJ2ieFzjs";
@@ -18,6 +19,7 @@ const PUBLIC_AUTH_APIS = new Set([
 	"/api/auth/register",
 	"/api/auth/verify",
 ]);
+const SITE_ACCESS_PATH = "/api/site-access";
 const PUBLIC_ASSET_PREFIXES = [
 	"/_astro/",
 	"/assets/",
@@ -86,6 +88,19 @@ function loginRedirect(url) {
 	return Response.redirect(loginUrl, 302);
 }
 
+function siteAccessDenied(pathname) {
+	const headers = {
+		"Cache-Control": "no-store",
+		"Content-Type": pathname.startsWith("/api/")
+			? "application/json; charset=UTF-8"
+			: "text/plain; charset=UTF-8",
+	};
+	const body = pathname.startsWith("/api/")
+		? JSON.stringify({ error: "Site access is temporarily paused." })
+		: "403 — Site access is temporarily paused.";
+	return new Response(body, { status: 403, headers });
+}
+
 export const onRequest = async (context) => {
 	const { request, env, next } = context;
 	const url = new URL(request.url);
@@ -107,30 +122,54 @@ export const onRequest = async (context) => {
 			},
 		});
 	}
-	if (isPublicAsset(url.pathname) || PUBLIC_AUTH_APIS.has(pathname)) {
+	if (isPublicAsset(url.pathname)) {
 		return next();
 	}
 
 	let session;
+	let siteAccess;
 	try {
 		session = await getSession(context);
+		siteAccess = await loadSiteAccess(env.DB);
 	} catch (error) {
-		console.error("Session middleware failed:", error.message);
+		console.error("Access middleware failed:", error.message);
 		if (pathname.startsWith("/api/")) {
 			return json(
-				{ error: "The session service is temporarily unavailable." },
+				{ error: "The access service is temporarily unavailable." },
 				503,
 			);
 		}
-		return new Response("Authentication service unavailable.", {
+		return new Response("Access service unavailable.", {
 			status: 503,
 			headers: { "Cache-Control": "no-store" },
 		});
 	}
 
-	if (PUBLIC_PAGES.has(pathname)) {
-		return session ? Response.redirect(new URL("/", url), 302) : next();
+	if (pathname === SITE_ACCESS_PATH && request.method === "GET") {
+		return siteAccess.paused && session?.user?.role !== "admin"
+			? siteAccessDenied(pathname)
+			: new Response(null, {
+					status: 204,
+					headers: { "Cache-Control": "no-store" },
+				});
 	}
+
+	const maintenanceLogin =
+		pathname === "/login" || pathname === "/api/auth/login";
+	if (
+		siteAccess.paused &&
+		session?.user?.role !== "admin" &&
+		!maintenanceLogin
+	) {
+		return siteAccessDenied(pathname);
+	}
+
+	if (PUBLIC_PAGES.has(pathname)) {
+		return session && (!siteAccess.paused || session.user.role === "admin")
+			? Response.redirect(new URL("/", url), 302)
+			: next();
+	}
+	if (PUBLIC_AUTH_APIS.has(pathname)) return next();
 	if (!session) {
 		return pathname.startsWith("/api/")
 			? json({ error: "You are not signed in." }, 401)

@@ -60,6 +60,8 @@ const activityLabels: Record<string, string> = {
 	account_deleted: "注销账户",
 	timeline_event_published: "发布公开活动",
 	timeline_event_deleted: "删除公开活动",
+	site_access_paused: "暂停全站访客访问",
+	site_access_resumed: "恢复全站访客访问",
 };
 
 function formatTimestamp(value?: number | null) {
@@ -446,6 +448,48 @@ function setAdminSectionExpanded(section: HTMLElement, expanded: boolean) {
 	}
 }
 
+function renderSiteAccessState(
+	root: HTMLElement,
+	state: { paused: boolean; updatedAt?: number | null },
+) {
+	const status = root.querySelector<HTMLElement>("#admin-access-status");
+	const updated = root.querySelector<HTMLElement>("#admin-access-updated");
+	const toggle = root.querySelector<HTMLButtonElement>("#admin-access-toggle");
+	if (status)
+		status.textContent = state.paused ? "访客访问已暂停" : "网站正常开放";
+	if (updated) {
+		updated.textContent = state.updatedAt
+			? `最近更新：${formatTimestamp(state.updatedAt)}`
+			: "";
+	}
+	if (toggle) {
+		toggle.disabled = false;
+		toggle.dataset.paused = String(state.paused);
+		toggle.textContent = state.paused ? "恢复全站访问" : "暂停访客访问";
+	}
+}
+
+async function loadSiteAccessState(root: HTMLElement) {
+	const toggle = root.querySelector<HTMLButtonElement>("#admin-access-toggle");
+	const message = root.querySelector<HTMLElement>("#admin-access-message");
+	if (toggle) toggle.disabled = true;
+	setAdminMessage(message, "");
+	try {
+		const response = await fetch("/api/admin/site-access", {
+			cache: "no-store",
+		});
+		const result = await response.json();
+		if (!response.ok) throw new Error(result.error || "全站访问状态读取失败。");
+		renderSiteAccessState(root, result.state);
+	} catch (error) {
+		setAdminMessage(
+			message,
+			error instanceof Error ? error.message : "全站访问状态读取失败。",
+			true,
+		);
+	}
+}
+
 function renderAdminNotes(root: HTMLElement, notes: AdminNote[]) {
 	const list = root.querySelector<HTMLElement>("#admin-notes-list");
 	if (!list) return;
@@ -601,6 +645,46 @@ function bindAdminTools(root: HTMLElement) {
 	root
 		.querySelector<HTMLButtonElement>("#admin-timeline-refresh")
 		?.addEventListener("click", () => void loadAdminTimeline(root));
+	root
+		.querySelector<HTMLButtonElement>("#admin-access-toggle")
+		?.addEventListener("click", async (event) => {
+			const button = event.currentTarget as HTMLButtonElement;
+			const paused = button.dataset.paused !== "true";
+			if (
+				paused &&
+				!window.confirm(
+					"确定暂停所有普通访客的站内访问吗？管理员访问不受影响。",
+				)
+			) {
+				return;
+			}
+			const message = root.querySelector<HTMLElement>("#admin-access-message");
+			button.disabled = true;
+			setAdminMessage(message, "");
+			try {
+				const response = await fetch("/api/admin/site-access", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ paused }),
+				});
+				const result = await response.json();
+				if (!response.ok)
+					throw new Error(result.error || "全站访问状态更新失败。");
+				renderSiteAccessState(root, result.state);
+				setAdminMessage(
+					message,
+					paused ? "普通访客访问已暂停。" : "全站访问已恢复。",
+				);
+				void loadAdminActivity(root);
+			} catch (error) {
+				setAdminMessage(
+					message,
+					error instanceof Error ? error.message : "全站访问状态更新失败。",
+					true,
+				);
+				button.disabled = false;
+			}
+		});
 	root.addEventListener("click", (event) => {
 		const target = event.target as Element | null;
 		const collapse = target?.closest<HTMLButtonElement>(
@@ -1001,6 +1085,7 @@ export function initAccountPage() {
 				bindAdminButtons(root);
 				bindAdminTools(root);
 				await Promise.all([
+					loadSiteAccessState(root),
 					loadAdminActivity(root),
 					loadAdminTimeline(root),
 					loadAdminNotes(root),

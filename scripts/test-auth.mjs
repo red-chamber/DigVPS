@@ -7,6 +7,10 @@ import {
 	onRequestPut as updateNote,
 } from "../functions/api/admin/notes.js";
 import {
+	onRequestGet as getSiteAccess,
+	onRequestPost as setSiteAccess,
+} from "../functions/api/admin/site-access.js";
+import {
 	onRequestDelete as deleteTimelineEvent,
 	onRequestPost as publishTimelineEvent,
 } from "../functions/api/admin/timeline.js";
@@ -182,25 +186,38 @@ assert.equal(
 	false,
 );
 
-function fakeDb(sessionRow = null) {
+function fakeDb(sessionRow = null, paused = false) {
 	return {
-		prepare() {
+		prepare(sql) {
 			return {
 				bind() {
 					return {
-						first: async () => sessionRow,
+						first: async () =>
+							sql.includes("FROM site_access")
+								? { paused: paused ? 1 : 0, updated_at: 100 }
+								: sessionRow,
 						run: async () => ({ success: true }),
 					};
 				},
+				first: async () =>
+					sql.includes("FROM site_access")
+						? { paused: paused ? 1 : 0, updated_at: 100 }
+						: sessionRow,
 			};
 		},
 	};
 }
 
-async function runMiddleware({ url, headers = {}, env = {}, row = null }) {
+async function runMiddleware({
+	url,
+	headers = {},
+	env = {},
+	row = null,
+	paused = false,
+}) {
 	return authMiddleware({
 		request: new Request(url, { headers }),
-		env: { ...env, DB: env.DB || fakeDb(row) },
+		env: { ...env, DB: env.DB || fakeDb(row, paused) },
 		data: {},
 		next: async () =>
 			new Response("OK", {
@@ -243,6 +260,33 @@ const publicLogin = await runMiddleware({
 });
 assert.equal(publicLogin.status, 200);
 
+const activeSiteStatus = await runMiddleware({
+	url: "https://cedrian.cn/api/site-access",
+	env: configuredEnv,
+});
+assert.equal(activeSiteStatus.status, 204);
+
+const pausedPublicLogin = await runMiddleware({
+	url: "https://cedrian.cn/login/",
+	env: configuredEnv,
+	paused: true,
+});
+assert.equal(pausedPublicLogin.status, 200);
+
+const pausedRegistration = await runMiddleware({
+	url: "https://cedrian.cn/register/",
+	env: configuredEnv,
+	paused: true,
+});
+assert.equal(pausedRegistration.status, 403);
+
+const pausedAnonymousPage = await runMiddleware({
+	url: "https://cedrian.cn/notes/",
+	env: configuredEnv,
+	paused: true,
+});
+assert.equal(pausedAnonymousPage.status, 403);
+
 const protectedPage = await runMiddleware({
 	url: "https://cedrian.cn/notes/?page=1",
 	env: configuredEnv,
@@ -275,23 +319,59 @@ const validSession = await runMiddleware({
 assert.equal(validSession.status, 200);
 assert.equal(validSession.headers.get("Cache-Control"), "private, no-store");
 
+const pausedUser = await runMiddleware({
+	url: "https://cedrian.cn/",
+	headers: { Cookie: "digvps_session=test-token" },
+	env: configuredEnv,
+	paused: true,
+	row: {
+		token_hash: "hash",
+		expires_at: 2_000_000_000,
+		id: "user-1",
+		email: "reader@example.com",
+		username: null,
+		role: "user",
+	},
+});
+assert.equal(pausedUser.status, 403);
+
+const pausedAdmin = await runMiddleware({
+	url: "https://cedrian.cn/",
+	headers: { Cookie: "digvps_session=test-token" },
+	env: configuredEnv,
+	paused: true,
+	row: {
+		token_hash: "hash",
+		expires_at: 2_000_000_000,
+		id: "admin-1",
+		email: "admin@example.com",
+		username: "root",
+		role: "admin",
+	},
+});
+assert.equal(pausedAdmin.status, 200);
+
 let authenticatedDbCalls = 0;
 const noPageViewDb = {
-	prepare() {
+	prepare(sql) {
 		authenticatedDbCalls += 1;
 		return {
 			bind() {
 				return {
-					first: async () => ({
-						token_hash: "hash",
-						expires_at: 2_000_000_000,
-						id: "user-1",
-						email: "reader@example.com",
-						username: null,
-						role: "user",
-					}),
+					first: async () =>
+						sql.includes("FROM site_access")
+							? { paused: 0, updated_at: 100 }
+							: {
+									token_hash: "hash",
+									expires_at: 2_000_000_000,
+									id: "user-1",
+									email: "reader@example.com",
+									username: null,
+									role: "user",
+								},
 				};
 			},
+			first: async () => ({ paused: 0, updated_at: 100 }),
 		};
 	},
 };
@@ -302,7 +382,7 @@ await runMiddleware({
 });
 assert.equal(
 	authenticatedDbCalls,
-	1,
+	2,
 	"HTML GET must not create page_view activity",
 );
 
@@ -318,6 +398,45 @@ const regularUserActivity = await adminActivity({
 	env: { DB: {} },
 });
 assert.equal(regularUserActivity.status, 403);
+
+const regularSiteAccess = await getSiteAccess({
+	data: { user: { id: "user-1", role: "user" } },
+});
+assert.equal(regularSiteAccess.status, 403);
+
+const siteAccessSql = [];
+const siteAccessBindings = [];
+const adminSiteAccess = await setSiteAccess({
+	request: new Request("https://digvps.pages.dev/api/admin/site-access", {
+		method: "POST",
+		headers: {
+			Origin: "https://digvps.pages.dev",
+			"Content-Type": "application/json",
+		},
+		body: JSON.stringify({ paused: true }),
+	}),
+	data: { user: { id: "admin-1", role: "admin" } },
+	env: {
+		DB: {
+			prepare(sql) {
+				siteAccessSql.push(sql);
+				return {
+					bind(...values) {
+						siteAccessBindings.push(values);
+						return this;
+					},
+					async run() {
+						return { success: true };
+					},
+				};
+			},
+		},
+	},
+});
+assert.equal(adminSiteAccess.status, 200);
+assert.equal((await adminSiteAccess.json()).state.paused, true);
+assert.match(siteAccessSql[0], /UPDATE site_access/u);
+assert.deepEqual(siteAccessBindings[0].slice(0, 2), [1, "admin-1"]);
 
 const adminSql = [];
 const adminActivityResponse = await adminActivity({

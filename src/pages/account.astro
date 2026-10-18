@@ -40,6 +40,7 @@ import MainGridLayout from "../layouts/MainGridLayout.astro";
 	<nav id="admin-section-nav" aria-label="管理员功能目录" class="card-base mt-6 hidden px-6 py-5 md:px-9">
 		<p class="mb-3 text-sm font-medium text-black/50">管理员目录</p>
 		<div class="flex flex-wrap gap-2">
+			<a href="#admin-access-panel" class="btn-regular rounded-lg px-3 py-2 text-sm font-medium">访问控制</a>
 			<a href="#admin-publish-panel" class="btn-regular rounded-lg px-3 py-2 text-sm font-medium">发布笔记</a>
 			<a href="#admin-timeline-panel" class="btn-regular rounded-lg px-3 py-2 text-sm font-medium">公开时间线</a>
 			<a href="#admin-notes-panel" class="btn-regular rounded-lg px-3 py-2 text-sm font-medium">站内笔记</a>
@@ -47,6 +48,26 @@ import MainGridLayout from "../layouts/MainGridLayout.astro";
 			<a href="#admin-activity-panel" class="btn-regular rounded-lg px-3 py-2 text-sm font-medium">用户活动</a>
 		</div>
 	</nav>
+
+	<section id="admin-access-panel" data-admin-section class="card-base mt-6 hidden scroll-mt-24 px-6 py-7 md:px-9 md:py-8">
+		<div class="mb-5 flex items-start justify-between gap-4">
+			<div>
+				<p class="text-sm font-medium text-[var(--primary)]">ADMIN</p>
+				<h2 class="font-serif text-2xl font-bold text-black/90">全站访问控制</h2>
+				<p class="mt-1 text-sm text-black/50">暂停后，仅管理员可以访问站内页面和 API；登录入口仍然保留</p>
+			</div>
+			<button type="button" data-admin-collapse aria-expanded="true" class="btn-regular shrink-0 rounded-lg px-3 py-2 text-sm font-bold">收起</button>
+		</div>
+		<div data-admin-section-content class="space-y-4">
+			<div class="rounded-lg border border-[var(--line-color)] bg-white/50 px-4 py-4">
+				<p class="text-xs text-black/45">当前状态</p>
+				<p id="admin-access-status" class="mt-1 text-lg font-bold text-black/80">正在读取……</p>
+				<p id="admin-access-updated" class="mt-1 text-sm text-black/45"></p>
+			</div>
+			<p id="admin-access-message" class="hidden rounded-lg px-4 py-3 text-sm" role="status"></p>
+			<button id="admin-access-toggle" type="button" disabled class="btn-regular w-full rounded-lg px-4 py-3 font-bold">正在读取状态……</button>
+		</div>
+	</section>
 
 	<section id="admin-publish-panel" data-admin-section class="card-base mt-6 hidden scroll-mt-24 px-6 py-7 md:px-9 md:py-8">
 		<div class="mb-5 flex items-start justify-between gap-4">
