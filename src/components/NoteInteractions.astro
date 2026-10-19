@@ -19,7 +19,7 @@ const { noteKey } = Astro.props;
 	</div>
 
 	<p class="note-interaction-message mt-4 hidden rounded-lg px-4 py-3 text-sm" role="status"></p>
-	<p class="note-guest-prompt mt-4 hidden text-sm text-black/60">You are browsing as a guest. <a href="/login/" data-astro-reload class="note-sign-in font-bold text-[var(--primary)] underline">Sign in</a> to like or comment.</p>
+	<p class="note-guest-prompt mt-4 hidden text-sm text-black/60">You are browsing as a guest. <a href="/login/" data-no-swup class="note-sign-in font-bold text-[var(--primary)] underline">Sign in</a> to like or comment.</p>
 
 	<form class="note-comment-form mt-5 hidden">
 		<label class="mb-2 block font-bold text-black/75" for={`note-comment-${noteKey.replaceAll(/[^a-z0-9]/giu, "-")}`}>Leave a Comment</label>
