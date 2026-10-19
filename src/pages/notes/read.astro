@@ -14,6 +14,10 @@ import MainGridLayout from "@layouts/MainGridLayout.astro";
 		<div class="my-5 border-b border-dashed border-[var(--line-divider)]"></div>
 		<div id="dynamic-note-content" class="prose custom-md markdown-content !max-w-none"></div>
 	</article>
+	<section id="related-notes" class="card-base mb-4 hidden px-6 py-6 md:px-9">
+		<h2 class="font-serif text-2xl font-bold text-black/90">Related Notes</h2>
+		<div id="related-notes-list" class="mt-4 grid gap-3 md:grid-cols-2"></div>
+	</section>
 	<div id="dynamic-note-interactions" class="hidden">
 		<NoteInteractions noteKey="" />
 	</div>

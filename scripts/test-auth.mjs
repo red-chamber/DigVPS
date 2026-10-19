@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { onRequest as authMiddleware } from "../functions/_middleware.js";
 import { onRequestGet as adminActivity } from "../functions/api/admin/activity.js";
 import { onRequestPost as moderateComment } from "../functions/api/admin/comments.js";
+import { onRequestPost as reviewNoteSubmission } from "../functions/api/admin/note-submissions.js";
 import {
 	onRequestPost as publishNote,
 	onRequestPut as updateNote,
@@ -15,6 +16,7 @@ import {
 	onRequestPost as publishTimelineEvent,
 } from "../functions/api/admin/timeline.js";
 import { onRequestPost as submitComment } from "../functions/api/note-comments.js";
+import { onRequestPost as submitNote } from "../functions/api/note-submissions.js";
 import { onRequestGet as getPublishedNote } from "../functions/api/published-note.js";
 import {
 	createSessionRecord,
@@ -484,6 +486,123 @@ const regularPublish = await publishNote({
 	data: { user: { id: "user-1", role: "user" } },
 });
 assert.equal(regularPublish.status, 403);
+
+const anonymousSubmission = await submitNote({
+	request: new Request("https://digvps.pages.dev/api/note-submissions", {
+		method: "POST",
+	}),
+	data: {},
+});
+assert.equal(anonymousSubmission.status, 401);
+
+const submissionSql = [];
+const submissionBindings = [];
+const userSubmission = await submitNote({
+	request: new Request("https://digvps.pages.dev/api/note-submissions", {
+		method: "POST",
+		headers: {
+			Origin: "https://digvps.pages.dev",
+			"Content-Type": "application/json",
+		},
+		body: JSON.stringify({
+			title: "Reader Note",
+			description: "A submitted draft",
+			markdown: "# Draft",
+		}),
+	}),
+	data: { user: { id: "user-1", role: "user" } },
+	env: {
+		DB: {
+			prepare(sql) {
+				submissionSql.push(sql);
+				return {
+					bind(...values) {
+						submissionBindings.push(values);
+						return this;
+					},
+					async first() {
+						return { total: 0 };
+					},
+					async run() {
+						return { success: true, meta: { changes: 1 } };
+					},
+				};
+			},
+		},
+	},
+});
+assert.equal(userSubmission.status, 201);
+assert.ok(
+	submissionSql.some((sql) => /INSERT INTO note_submissions/u.test(sql)),
+);
+assert.ok(
+	submissionSql.some((sql) => /INSERT INTO user_activities/u.test(sql)),
+);
+assert.equal(
+	submissionBindings.find((values) => values.includes("Reader Note"))?.[1],
+	"user-1",
+);
+
+const regularSubmissionReview = await reviewNoteSubmission({
+	request: new Request("https://digvps.pages.dev/api/admin/note-submissions", {
+		method: "POST",
+	}),
+	data: { user: { id: "user-1", role: "user" } },
+});
+assert.equal(regularSubmissionReview.status, 403);
+
+const reviewSql = [];
+const reviewBatches = [];
+const approvedSubmission = await reviewNoteSubmission({
+	request: new Request("https://digvps.pages.dev/api/admin/note-submissions", {
+		method: "POST",
+		headers: {
+			Origin: "https://digvps.pages.dev",
+			"Content-Type": "application/json",
+		},
+		body: JSON.stringify({
+			id: "submission-1",
+			action: "approve",
+			title: "Reviewed Note",
+			slug: "reviewed-note",
+			description: "Reviewed description",
+			category: "Linux",
+			tags: ["Linux"],
+			markdown: "# Reviewed",
+		}),
+	}),
+	data: { user: { id: "admin-1", role: "admin" } },
+	env: {
+		DB: {
+			prepare(sql) {
+				reviewSql.push(sql);
+				return {
+					sql,
+					bind(...values) {
+						this.values = values;
+						return this;
+					},
+					async run() {
+						return { success: true, meta: { changes: 1 } };
+					},
+				};
+			},
+			async batch(statements) {
+				reviewBatches.push(statements);
+				return statements.map(() => ({
+					success: true,
+					meta: { changes: 1 },
+				}));
+			},
+		},
+	},
+});
+assert.equal(approvedSubmission.status, 200);
+assert.equal((await approvedSubmission.json()).status, "approved");
+assert.equal(reviewBatches[0].length, 2);
+assert.match(reviewBatches[0][0].sql, /UPDATE note_submissions/u);
+assert.match(reviewBatches[0][1].sql, /INSERT INTO published_notes/u);
+assert.ok(reviewSql.some((sql) => /INSERT INTO user_activities/u.test(sql)));
 
 const regularUpdate = await updateNote({
 	request: new Request("https://digvps.pages.dev/api/admin/notes", {

@@ -6,14 +6,12 @@ import {
 	requestHasSameOrigin,
 } from "../../../server/auth.js";
 import {
-	normalizeSlug,
+	MAX_NOTE_BYTES,
 	prepareNoteDeletion,
-	renderMarkdown,
+	publishedNoteInput,
 	resolvePublishedNote,
 	validPublishedNoteSlug,
 } from "../../../server/notes.js";
-
-const MAX_NOTE_BYTES = 256 * 1024;
 
 function requireAdmin(context) {
 	if (!context.data?.user) return json({ error: "尚未登录。" }, 401);
@@ -30,48 +28,6 @@ function parseTags(value) {
 	} catch {
 		return [];
 	}
-}
-
-function noteInput(body) {
-	const title = String(body.title || "").trim();
-	const slug = normalizeSlug(body.slug);
-	const description = String(body.description || "").trim();
-	const category = String(body.category || "").trim();
-	const markdown = String(body.markdown || "").trim();
-	const tags = Array.isArray(body.tags)
-		? [
-				...new Set(body.tags.map((tag) => String(tag).trim()).filter(Boolean)),
-			].slice(0, 12)
-		: [];
-	if (!title || title.length > 120) {
-		return { error: "标题须为 1–120 个字符。" };
-	}
-	if (!validPublishedNoteSlug(slug)) {
-		return {
-			error: "Slug 仅可包含小写字母、数字和连字符，最长 80 个字符。",
-		};
-	}
-	if (!description || description.length > 240) {
-		return { error: "简短介绍须为 1–240 个字符。" };
-	}
-	if (!category || category.length > 60) {
-		return { error: "分类须为 1–60 个字符。" };
-	}
-	if (!markdown) return { error: "Markdown 正文不能为空。" };
-	if (tags.some((tag) => tag.length > 40)) {
-		return { error: "每个标签不能超过 40 个字符。" };
-	}
-	return {
-		data: {
-			title,
-			slug,
-			description,
-			category,
-			markdown,
-			tags,
-			renderedHtml: renderMarkdown(markdown),
-		},
-	};
 }
 
 async function editableNote(db, noteKey) {
@@ -189,7 +145,7 @@ export async function onRequestPut(context) {
 		return json({ error: error.message || "请求格式无效。" }, 400);
 	}
 	const noteKey = String(body.noteKey || "");
-	const input = noteInput(body);
+	const input = publishedNoteInput(body);
 	if (input.error) return json({ error: input.error }, 400);
 	const note = input.data;
 	const now = Math.floor(Date.now() / 1000);
@@ -279,7 +235,7 @@ export async function onRequestPost(context) {
 	} catch (error) {
 		return json({ error: error.message || "请求格式无效。" }, 400);
 	}
-	const input = noteInput(body);
+	const input = publishedNoteInput(body);
 	if (input.error) return json({ error: input.error }, 400);
 	const note = input.data;
 

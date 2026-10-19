@@ -1,4 +1,8 @@
 import { initNoteInteractions } from "./note-interactions";
+import {
+	getPublishedNotes,
+	type PublishedNoteSummary,
+} from "./published-notes";
 
 const loadingNotes = new WeakSet<HTMLElement>();
 
@@ -78,6 +82,64 @@ function enhanceMathBlocks(content: HTMLElement) {
 	}
 }
 
+function relatedNoteScore(
+	current: { category: string; tags?: string[] },
+	candidate: PublishedNoteSummary,
+) {
+	let score = candidate.category === current.category ? 3 : 0;
+	const currentTags = new Set(current.tags || []);
+	for (const tag of candidate.tags) {
+		if (currentTags.has(tag)) score += 2;
+	}
+	return score;
+}
+
+async function renderRelatedNotes(current: {
+	slug: string;
+	category: string;
+	tags?: string[];
+}) {
+	const section = document.querySelector<HTMLElement>("#related-notes");
+	const list = section?.querySelector<HTMLElement>("#related-notes-list");
+	if (!section || !list) return;
+	try {
+		const notes = await getPublishedNotes();
+		const related = notes
+			.filter((note) => note.slug !== current.slug)
+			.map((note) => ({ note, score: relatedNoteScore(current, note) }))
+			.filter(({ score }) => score > 0)
+			.sort(
+				(left, right) =>
+					right.score - left.score ||
+					right.note.updated_at - left.note.updated_at,
+			)
+			.slice(0, 4);
+		list.replaceChildren();
+		for (const { note } of related) {
+			const link = document.createElement("a");
+			link.href = `/notes/read/?slug=${encodeURIComponent(note.slug)}`;
+			link.className =
+				"block rounded-xl border border-[var(--line-color)] bg-white/35 px-4 py-4 transition hover:border-[var(--primary)]/40 hover:bg-white/50";
+			const title = document.createElement("h3");
+			title.className = "font-bold text-black/80";
+			title.textContent = note.title;
+			const description = document.createElement("p");
+			description.className = "mt-1.5 text-sm text-black/55";
+			description.textContent = note.description;
+			const meta = document.createElement("p");
+			meta.className = "mt-2 text-xs text-black/40";
+			meta.textContent = [note.category, ...note.tags.map((tag) => `#${tag}`)]
+				.filter(Boolean)
+				.join(" · ");
+			link.append(title, description, meta);
+			list.append(link);
+		}
+		section.classList.toggle("hidden", related.length === 0);
+	} catch {
+		section.classList.add("hidden");
+	}
+}
+
 export function initDynamicNote() {
 	const loading = document.querySelector<HTMLElement>("#dynamic-note-loading");
 	const article = document.querySelector<HTMLElement>("#dynamic-note");
@@ -139,6 +201,7 @@ export function initDynamicNote() {
 			article.classList.remove("hidden");
 			wrapper.classList.remove("hidden");
 			initNoteInteractions(wrapper);
+			void renderRelatedNotes(note);
 		} catch (error) {
 			loading.textContent =
 				error instanceof Error ? error.message : "Failed to load the note.";

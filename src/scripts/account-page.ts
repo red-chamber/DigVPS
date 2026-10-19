@@ -5,6 +5,7 @@ import { invalidateTimelineData } from "./timeline-data";
 const boundLogoutButtons = new WeakSet<HTMLButtonElement>();
 const boundAdminButtons = new WeakSet<HTMLButtonElement>();
 const boundAdminToolRoots = new WeakSet<HTMLElement>();
+const boundSubmissionRoots = new WeakSet<HTMLElement>();
 const loadingAccountPages = new WeakSet<HTMLElement>();
 
 interface AdminUser {
@@ -57,6 +58,9 @@ const activityLabels: Record<string, string> = {
 	note_updated: "更新笔记",
 	note_deleted: "删除笔记",
 	note_liked: "点赞笔记",
+	note_submitted: "提交笔记审核",
+	note_submission_approved: "接纳用户笔记",
+	note_submission_rejected: "驳回用户笔记",
 	account_deleted: "注销账户",
 	timeline_event_published: "发布公开活动",
 	timeline_event_deleted: "删除公开活动",
@@ -264,6 +268,149 @@ function setAdminMessage(
 	}`;
 }
 
+interface NoteSubmission {
+	id: string;
+	title: string;
+	description: string;
+	status: "pending" | "approved" | "rejected";
+	rejection_reason?: string | null;
+	submitted_at: number;
+	reviewed_at?: number | null;
+	published_slug?: string | null;
+}
+
+const submissionStatusLabels: Record<NoteSubmission["status"], string> = {
+	pending: "Awaiting review",
+	approved: "Published",
+	rejected: "Rejected",
+};
+
+function renderNoteSubmissions(
+	root: HTMLElement,
+	submissions: NoteSubmission[],
+) {
+	const list = root.querySelector<HTMLElement>("#note-submissions-list");
+	if (!list) return;
+	list.replaceChildren();
+	if (!submissions.length) {
+		const empty = document.createElement("p");
+		empty.className =
+			"rounded-lg bg-[var(--btn-regular-bg)] px-4 py-5 text-center text-black/50";
+		empty.textContent = "You have not submitted any notes.";
+		list.append(empty);
+		return;
+	}
+	for (const submission of submissions) {
+		const article = document.createElement("article");
+		article.className =
+			"rounded-xl border border-[var(--line-color)] bg-white/45 px-4 py-4";
+		const heading = document.createElement("div");
+		heading.className = "flex flex-wrap items-start justify-between gap-2";
+		const title = document.createElement("p");
+		title.className = "font-bold text-black/80";
+		title.textContent = submission.title;
+		const status = document.createElement("span");
+		status.className =
+			"rounded-full bg-[var(--btn-regular-bg)] px-2.5 py-1 text-xs font-bold text-[var(--primary)]";
+		status.textContent = submissionStatusLabels[submission.status];
+		heading.append(title, status);
+		const description = document.createElement("p");
+		description.className = "mt-2 text-sm text-black/60";
+		description.textContent = submission.description;
+		const meta = document.createElement("p");
+		meta.className = "mt-2 text-xs text-black/40";
+		meta.textContent = `Submitted ${new Date(submission.submitted_at * 1000).toLocaleString("en-US")}`;
+		article.append(heading, description, meta);
+		if (submission.status === "rejected" && submission.rejection_reason) {
+			const reason = document.createElement("p");
+			reason.className =
+				"mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700";
+			reason.textContent = `Review note: ${submission.rejection_reason}`;
+			article.append(reason);
+		}
+		if (submission.status === "approved" && submission.published_slug) {
+			const link = document.createElement("a");
+			link.href = `/notes/read/?slug=${encodeURIComponent(submission.published_slug)}`;
+			link.className =
+				"mt-3 inline-flex font-bold text-[var(--primary)] underline";
+			link.textContent = "Open published note";
+			article.append(link);
+		}
+		list.append(article);
+	}
+}
+
+async function loadNoteSubmissions(root: HTMLElement) {
+	const refresh = root.querySelector<HTMLButtonElement>(
+		"#note-submissions-refresh",
+	);
+	const message = root.querySelector<HTMLElement>("#note-submission-message");
+	if (refresh) refresh.disabled = true;
+	try {
+		const response = await fetch("/api/note-submissions", {
+			cache: "no-store",
+		});
+		const result = await response.json();
+		if (!response.ok)
+			throw new Error(result.error || "Failed to load your submissions.");
+		renderNoteSubmissions(root, result.submissions || []);
+	} catch (error) {
+		setAdminMessage(
+			message,
+			error instanceof Error
+				? error.message
+				: "Failed to load your submissions.",
+			true,
+		);
+	} finally {
+		if (refresh) refresh.disabled = false;
+	}
+}
+
+function bindNoteSubmissions(root: HTMLElement) {
+	if (boundSubmissionRoots.has(root)) return;
+	boundSubmissionRoots.add(root);
+	root
+		.querySelector<HTMLButtonElement>("#note-submissions-refresh")
+		?.addEventListener("click", () => void loadNoteSubmissions(root));
+	const form = root.querySelector<HTMLFormElement>("#note-submission-form");
+	form?.addEventListener("submit", async (event) => {
+		event.preventDefault();
+		const submit = root.querySelector<HTMLButtonElement>(
+			"#note-submission-submit",
+		);
+		const message = root.querySelector<HTMLElement>("#note-submission-message");
+		const data = new FormData(form);
+		if (submit) submit.disabled = true;
+		setAdminMessage(message, "");
+		try {
+			const response = await fetch("/api/note-submissions", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					title: String(data.get("title") || ""),
+					description: String(data.get("description") || ""),
+					markdown: String(data.get("markdown") || ""),
+				}),
+			});
+			const result = await response.json();
+			if (!response.ok)
+				throw new Error(result.error || "Failed to submit the note.");
+			form.reset();
+			setAdminMessage(message, "Your note has been submitted for review.");
+			await loadNoteSubmissions(root);
+		} catch (error) {
+			setAdminMessage(
+				message,
+				error instanceof Error ? error.message : "Failed to submit the note.",
+				true,
+			);
+		} finally {
+			if (submit) submit.disabled = false;
+		}
+	});
+}
+
 interface PendingComment {
 	id: string;
 	note_key: string;
@@ -292,6 +439,18 @@ interface EditableAdminNote {
 	tags: string[];
 	markdown: string;
 }
+
+interface PendingNoteSubmission {
+	id: string;
+	title: string;
+	description: string;
+	markdown: string;
+	submitted_at: number;
+	email: string;
+	username?: string | null;
+}
+
+let pendingNoteSubmissions: PendingNoteSubmission[] = [];
 
 function noteFormPayload(form: HTMLFormElement) {
 	const data = new FormData(form);
@@ -562,6 +721,194 @@ async function loadAdminNotes(root: HTMLElement) {
 	}
 }
 
+function submissionSlug(submission: PendingNoteSubmission) {
+	const fromTitle = submission.title
+		.toLowerCase()
+		.trim()
+		.replace(/[^a-z0-9]+/gu, "-")
+		.replace(/^-+|-+$/gu, "")
+		.slice(0, 80)
+		.replace(/-+$/u, "");
+	return fromTitle || `submission-${submission.submitted_at}`;
+}
+
+function closeSubmissionReview(root: HTMLElement) {
+	const form = root.querySelector<HTMLFormElement>(
+		"#admin-submission-review-form",
+	);
+	form?.reset();
+	form?.classList.add("hidden");
+	setAdminMessage(
+		root.querySelector<HTMLElement>("#admin-submission-review-message"),
+		"",
+	);
+}
+
+function populateSubmissionReview(
+	root: HTMLElement,
+	submission: PendingNoteSubmission,
+) {
+	const form = root.querySelector<HTMLFormElement>(
+		"#admin-submission-review-form",
+	);
+	if (!form) return;
+	setNoteFormValue(form, "id", submission.id);
+	setNoteFormValue(form, "title", submission.title);
+	setNoteFormValue(form, "slug", submissionSlug(submission));
+	setNoteFormValue(form, "description", submission.description);
+	setNoteFormValue(form, "category", "General");
+	setNoteFormValue(form, "tags", "");
+	setNoteFormValue(form, "markdown", submission.markdown);
+	setNoteFormValue(form, "rejectionReason", "");
+	const hint = root.querySelector<HTMLElement>("#admin-submission-review-hint");
+	if (hint) {
+		hint.textContent = `投稿者：${submission.username || submission.email} · ${formatTimestamp(submission.submitted_at)}`;
+	}
+	setAdminMessage(
+		root.querySelector<HTMLElement>("#admin-submission-review-message"),
+		"",
+	);
+	form.classList.remove("hidden");
+	form.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function renderPendingNoteSubmissions(
+	root: HTMLElement,
+	submissions: PendingNoteSubmission[],
+) {
+	pendingNoteSubmissions = submissions;
+	const list = root.querySelector<HTMLElement>("#admin-submissions-list");
+	if (!list) return;
+	list.replaceChildren();
+	if (!submissions.length) {
+		const empty = document.createElement("p");
+		empty.className =
+			"rounded-lg bg-[var(--btn-regular-bg)] px-4 py-5 text-center text-black/50";
+		empty.textContent = "暂无待审核笔记";
+		list.append(empty);
+		return;
+	}
+	for (const submission of submissions) {
+		const article = document.createElement("article");
+		article.dataset.submissionId = submission.id;
+		article.className =
+			"rounded-xl border border-[var(--line-color)] bg-white/45 px-4 py-4";
+		const meta = document.createElement("p");
+		meta.className = "text-xs text-black/45";
+		meta.textContent = `${submission.username || submission.email} · ${formatTimestamp(submission.submitted_at)}`;
+		const title = document.createElement("h3");
+		title.className = "mt-2 font-bold text-black/80";
+		title.textContent = submission.title;
+		const description = document.createElement("p");
+		description.className = "mt-2 text-sm text-black/60";
+		description.textContent = submission.description;
+		const review = document.createElement("button");
+		review.type = "button";
+		review.dataset.reviewSubmission = "";
+		review.className =
+			"btn-regular mt-3 rounded-lg px-4 py-2 text-sm font-bold";
+		review.textContent = "审核";
+		article.append(meta, title, description, review);
+		list.append(article);
+	}
+}
+
+async function loadPendingNoteSubmissions(root: HTMLElement) {
+	const refresh = root.querySelector<HTMLButtonElement>(
+		"#admin-submissions-refresh",
+	);
+	const message = root.querySelector<HTMLElement>("#admin-submissions-message");
+	if (refresh) refresh.disabled = true;
+	setAdminMessage(message, "");
+	try {
+		const response = await fetch("/api/admin/note-submissions", {
+			cache: "no-store",
+		});
+		const result = await response.json();
+		if (!response.ok) throw new Error(result.error || "笔记投稿读取失败。");
+		renderPendingNoteSubmissions(root, result.submissions || []);
+	} catch (error) {
+		setAdminMessage(
+			message,
+			error instanceof Error ? error.message : "笔记投稿读取失败。",
+			true,
+		);
+	} finally {
+		if (refresh) refresh.disabled = false;
+	}
+}
+
+async function reviewNoteSubmission(
+	root: HTMLElement,
+	action: "approve" | "reject",
+) {
+	const form = root.querySelector<HTMLFormElement>(
+		"#admin-submission-review-form",
+	);
+	if (!form) return;
+	const data = new FormData(form);
+	const approve = root.querySelector<HTMLButtonElement>(
+		"#admin-submission-approve",
+	);
+	const reject = root.querySelector<HTMLButtonElement>(
+		"#admin-submission-reject",
+	);
+	const formMessage = root.querySelector<HTMLElement>(
+		"#admin-submission-review-message",
+	);
+	const panelMessage = root.querySelector<HTMLElement>(
+		"#admin-submissions-message",
+	);
+	if (approve) approve.disabled = true;
+	if (reject) reject.disabled = true;
+	setAdminMessage(formMessage, "");
+	setAdminMessage(panelMessage, "");
+	try {
+		const payload = {
+			...noteFormPayload(form),
+			id: String(data.get("id") || ""),
+			action,
+			rejectionReason: String(data.get("rejectionReason") || ""),
+		};
+		const response = await fetch("/api/admin/note-submissions", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(payload),
+		});
+		const result = await response.json();
+		if (!response.ok) throw new Error(result.error || "笔记投稿审核失败。");
+		closeSubmissionReview(root);
+		await loadPendingNoteSubmissions(root);
+		if (result.status === "approved") {
+			invalidatePublishedNotes();
+			invalidateTimelineData();
+			initPublishedNoteTaxonomy();
+			await Promise.all([loadAdminNotes(root), loadAdminTimeline(root)]);
+			setAdminMessage(panelMessage, `已接纳并发布“${result.title}”。`);
+			if (panelMessage) {
+				const link = document.createElement("a");
+				link.href = result.path;
+				link.className = "ml-2 font-bold underline";
+				link.textContent = "打开笔记";
+				panelMessage.append(link);
+			}
+		} else {
+			setAdminMessage(panelMessage, "投稿已驳回，理由将显示给投稿者。");
+		}
+		void loadNoteSubmissions(root);
+		void loadAdminActivity(root);
+	} catch (error) {
+		setAdminMessage(
+			formMessage,
+			error instanceof Error ? error.message : "笔记投稿审核失败。",
+			true,
+		);
+	} finally {
+		if (approve) approve.disabled = false;
+		if (reject) reject.disabled = false;
+	}
+}
+
 function renderPendingComments(root: HTMLElement, comments: PendingComment[]) {
 	const list = root.querySelector<HTMLElement>("#admin-comments-list");
 	if (!list) return;
@@ -640,6 +987,9 @@ function bindAdminTools(root: HTMLElement) {
 		.querySelector<HTMLButtonElement>("#admin-comments-refresh")
 		?.addEventListener("click", () => void loadPendingComments(root));
 	root
+		.querySelector<HTMLButtonElement>("#admin-submissions-refresh")
+		?.addEventListener("click", () => void loadPendingNoteSubmissions(root));
+	root
 		.querySelector<HTMLButtonElement>("#admin-notes-refresh")
 		?.addEventListener("click", () => void loadAdminNotes(root));
 	root
@@ -709,6 +1059,35 @@ function bindAdminTools(root: HTMLElement) {
 			setAdminSectionExpanded(section, true);
 		}
 	});
+	const submissionPanel = root.querySelector<HTMLElement>(
+		"#admin-submissions-panel",
+	);
+	submissionPanel?.addEventListener("click", (event) => {
+		const button = (event.target as Element | null)?.closest<HTMLButtonElement>(
+			"button[data-review-submission]",
+		);
+		if (!button) return;
+		const article = button.closest<HTMLElement>("[data-submission-id]");
+		const submission = pendingNoteSubmissions.find(
+			(item) => item.id === article?.dataset.submissionId,
+		);
+		if (submission) populateSubmissionReview(root, submission);
+	});
+	root
+		.querySelector<HTMLButtonElement>("#admin-submission-review-cancel")
+		?.addEventListener("click", () => closeSubmissionReview(root));
+	root
+		.querySelector<HTMLButtonElement>("#admin-submission-reject")
+		?.addEventListener(
+			"click",
+			() => void reviewNoteSubmission(root, "reject"),
+		);
+	root
+		.querySelector<HTMLFormElement>("#admin-submission-review-form")
+		?.addEventListener("submit", (event) => {
+			event.preventDefault();
+			void reviewNoteSubmission(root, "approve");
+		});
 
 	const timelinePanel = root.querySelector<HTMLElement>(
 		"#admin-timeline-panel",
@@ -1023,6 +1402,9 @@ export function initAccountPage() {
 	const expiry = root.querySelector<HTMLElement>("#account-expiry");
 	const message = root.querySelector<HTMLElement>("#account-message");
 	const logout = root.querySelector<HTMLButtonElement>("#logout-button");
+	const submissionPanel = root.querySelector<HTMLElement>(
+		"#note-submission-panel",
+	);
 	const adminSections = root.querySelectorAll<HTMLElement>(
 		"[data-admin-section]",
 	);
@@ -1057,8 +1439,12 @@ export function initAccountPage() {
 		loading.classList.remove("hidden");
 	}
 	details?.classList.add("hidden");
+	submissionPanel?.classList.add("hidden");
 	adminNavigation?.classList.add("hidden");
-	for (const section of adminSections) section.classList.add("hidden");
+	for (const section of adminSections) {
+		section.classList.add("hidden");
+		setAdminSectionExpanded(section, false);
+	}
 
 	void (async () => {
 		try {
@@ -1078,10 +1464,16 @@ export function initAccountPage() {
 				);
 			loading?.classList.add("hidden");
 			details?.classList.remove("hidden");
+			submissionPanel?.classList.remove("hidden");
+			bindNoteSubmissions(root);
+			void loadNoteSubmissions(root);
 
 			if (result.user.role === "admin" && adminSections.length) {
 				adminNavigation?.classList.remove("hidden");
-				for (const section of adminSections) section.classList.remove("hidden");
+				for (const section of adminSections) {
+					section.classList.remove("hidden");
+					setAdminSectionExpanded(section, false);
+				}
 				bindAdminButtons(root);
 				bindAdminTools(root);
 				await Promise.all([
@@ -1089,6 +1481,7 @@ export function initAccountPage() {
 					loadAdminActivity(root),
 					loadAdminTimeline(root),
 					loadAdminNotes(root),
+					loadPendingNoteSubmissions(root),
 					loadPendingComments(root),
 				]);
 			}

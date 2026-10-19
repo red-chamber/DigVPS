@@ -37,11 +37,45 @@ import MainGridLayout from "../layouts/MainGridLayout.astro";
 		</div>
 	</section>
 
+	<section id="note-submission-panel" class="card-base mt-6 hidden px-6 py-7 md:px-9 md:py-8">
+		<div class="mb-5">
+			<p class="text-sm font-medium text-[var(--primary)]">CONTRIBUTE</p>
+			<h2 class="font-serif text-2xl font-bold text-black/90">Submit a Note</h2>
+			<p class="mt-1 text-sm text-black/50">Send a title, short introduction, and Markdown draft. An administrator will review it before publication.</p>
+		</div>
+		<form id="note-submission-form" class="space-y-4">
+			<label class="block text-sm font-medium text-black/70">
+				Title <span class="text-red-600">*</span>
+				<input name="title" required maxlength="120" class="mt-1.5 w-full rounded-lg border border-[var(--line-color)] bg-white/60 px-3 py-2.5 outline-none focus:border-[var(--primary)]" />
+			</label>
+			<label class="block text-sm font-medium text-black/70">
+				Short introduction <span class="text-red-600">*</span>
+				<textarea name="description" required maxlength="240" rows="2" class="mt-1.5 w-full rounded-lg border border-[var(--line-color)] bg-white/60 px-3 py-2.5 outline-none focus:border-[var(--primary)]" placeholder="Shown in note lists; not part of the Markdown body"></textarea>
+			</label>
+			<label class="block text-sm font-medium text-black/70">
+				Markdown body <span class="text-red-600">*</span>
+				<textarea name="markdown" required rows="16" class="mt-1.5 w-full rounded-lg border border-[var(--line-color)] bg-white/60 px-3 py-3 font-mono text-sm outline-none focus:border-[var(--primary)]" placeholder="# Title&#10;&#10;Write your note here…"></textarea>
+			</label>
+			<p class="text-xs text-black/45">Up to five drafts may await review at once. Published notes support the same Markdown, formulas, and code highlighting as administrator-authored notes.</p>
+			<p id="note-submission-message" class="hidden rounded-lg px-4 py-3 text-sm" role="status"></p>
+			<button id="note-submission-submit" type="submit" class="btn-regular w-full rounded-lg px-4 py-3 font-bold">Submit for review</button>
+		</form>
+		<div class="my-6 border-b border-dashed border-[var(--line-divider)]"></div>
+		<div class="flex items-center justify-between gap-3">
+			<h3 class="text-lg font-bold text-black/80">My submissions</h3>
+			<button id="note-submissions-refresh" type="button" class="btn-regular rounded-lg px-3 py-2 text-sm font-bold">Refresh</button>
+		</div>
+		<div id="note-submissions-list" class="mt-3 space-y-3">
+			<p class="rounded-lg bg-[var(--btn-regular-bg)] px-4 py-4 text-black/55">Loading submissions…</p>
+		</div>
+	</section>
+
 	<nav id="admin-section-nav" aria-label="管理员功能目录" class="card-base mt-6 hidden px-6 py-5 md:px-9">
 		<p class="mb-3 text-sm font-medium text-black/50">管理员目录</p>
 		<div class="flex flex-wrap gap-2">
 			<a href="#admin-access-panel" class="btn-regular rounded-lg px-3 py-2 text-sm font-medium">访问控制</a>
 			<a href="#admin-publish-panel" class="btn-regular rounded-lg px-3 py-2 text-sm font-medium">发布笔记</a>
+			<a href="#admin-submissions-panel" class="btn-regular rounded-lg px-3 py-2 text-sm font-medium">笔记审核</a>
 			<a href="#admin-timeline-panel" class="btn-regular rounded-lg px-3 py-2 text-sm font-medium">公开时间线</a>
 			<a href="#admin-notes-panel" class="btn-regular rounded-lg px-3 py-2 text-sm font-medium">站内笔记</a>
 			<a href="#admin-comments-panel" class="btn-regular rounded-lg px-3 py-2 text-sm font-medium">评论审核</a>
@@ -56,9 +90,9 @@ import MainGridLayout from "../layouts/MainGridLayout.astro";
 				<h2 class="font-serif text-2xl font-bold text-black/90">全站访问控制</h2>
 				<p class="mt-1 text-sm text-black/50">暂停后，仅管理员可以访问站内页面和 API；登录入口仍然保留</p>
 			</div>
-			<button type="button" data-admin-collapse aria-expanded="true" class="btn-regular shrink-0 rounded-lg px-3 py-2 text-sm font-bold">收起</button>
+			<button type="button" data-admin-collapse aria-expanded="false" class="btn-regular shrink-0 rounded-lg px-3 py-2 text-sm font-bold">展开</button>
 		</div>
-		<div data-admin-section-content class="space-y-4">
+		<div data-admin-section-content class="hidden space-y-4">
 			<div class="rounded-lg border border-[var(--line-color)] bg-white/50 px-4 py-4">
 				<p class="text-xs text-black/45">当前状态</p>
 				<p id="admin-access-status" class="mt-1 text-lg font-bold text-black/80">正在读取……</p>
@@ -76,13 +110,53 @@ import MainGridLayout from "../layouts/MainGridLayout.astro";
 				<h2 class="font-serif text-2xl font-bold text-black/90">发布笔记</h2>
 				<p class="mt-1 text-sm text-black/50">正文使用 Markdown；发布后立即出现在“学习笔记”的在线发布区域</p>
 			</div>
-			<button type="button" data-admin-collapse aria-expanded="true" class="btn-regular shrink-0 rounded-lg px-3 py-2 text-sm font-bold">收起</button>
+			<button type="button" data-admin-collapse aria-expanded="false" class="btn-regular shrink-0 rounded-lg px-3 py-2 text-sm font-bold">展开</button>
 		</div>
-		<form id="admin-note-form" data-admin-section-content class="space-y-4">
+		<form id="admin-note-form" data-admin-section-content class="hidden space-y-4">
 			<AdminNoteFields prefix="admin-note" />
 			<p id="admin-note-message" class="hidden rounded-lg px-4 py-3 text-sm" role="status"></p>
 			<button id="admin-note-submit" type="submit" class="btn-regular w-full rounded-lg px-4 py-3 font-bold">立即发布</button>
 		</form>
+	</section>
+
+	<section id="admin-submissions-panel" data-admin-section class="card-base mt-6 hidden scroll-mt-24 px-6 py-7 md:px-9 md:py-8">
+		<div class="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+			<div>
+				<p class="text-sm font-medium text-[var(--primary)]">ADMIN</p>
+				<h2 class="font-serif text-2xl font-bold text-black/90">笔记审核</h2>
+				<p class="mt-1 text-sm text-black/50">检查用户投稿，补全发布属性后接纳，或说明理由后驳回</p>
+			</div>
+			<div class="flex gap-2">
+				<button id="admin-submissions-refresh" type="button" class="btn-regular rounded-lg px-4 py-2 text-sm font-bold">刷新</button>
+				<button type="button" data-admin-collapse aria-expanded="false" class="btn-regular rounded-lg px-3 py-2 text-sm font-bold">展开</button>
+			</div>
+		</div>
+		<div data-admin-section-content class="hidden space-y-5">
+			<p id="admin-submissions-message" class="hidden rounded-lg px-4 py-3 text-sm" role="status"></p>
+			<form id="admin-submission-review-form" class="hidden space-y-4 rounded-xl border border-[var(--primary)]/30 bg-white/35 p-4 md:p-5">
+				<div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+					<div>
+						<h3 class="text-lg font-bold text-black/80">审核并编辑</h3>
+						<p id="admin-submission-review-hint" class="mt-1 text-sm text-black/50"></p>
+					</div>
+					<button id="admin-submission-review-cancel" type="button" class="btn-regular shrink-0 rounded-lg px-3 py-2 text-sm font-bold">取消</button>
+				</div>
+				<input name="id" type="hidden" />
+				<AdminNoteFields prefix="admin-submission" />
+				<label class="block text-sm font-medium text-black/70">
+					驳回理由
+					<textarea name="rejectionReason" maxlength="500" rows="3" class="mt-1.5 w-full rounded-lg border border-[var(--line-color)] bg-white/60 px-3 py-2.5 outline-none focus:border-[var(--primary)]" placeholder="仅驳回时必填；投稿者将在账户页看到此说明"></textarea>
+				</label>
+				<p id="admin-submission-review-message" class="hidden rounded-lg px-4 py-3 text-sm" role="status"></p>
+				<div class="flex flex-col gap-2 sm:flex-row">
+					<button id="admin-submission-approve" type="submit" class="btn-regular flex-1 rounded-lg px-4 py-3 font-bold">接纳并发布</button>
+					<button id="admin-submission-reject" type="button" class="flex-1 rounded-lg border border-red-200 bg-red-50 px-4 py-3 font-bold text-red-700 transition hover:bg-red-100">驳回投稿</button>
+				</div>
+			</form>
+			<div id="admin-submissions-list" class="space-y-3">
+				<p class="rounded-lg bg-[var(--btn-regular-bg)] px-4 py-4 text-black/55">正在读取待审核投稿……</p>
+			</div>
+		</div>
 	</section>
 
 	<section id="admin-timeline-panel" data-admin-section class="card-base mt-6 hidden scroll-mt-24 px-6 py-7 md:px-9 md:py-8">
@@ -94,10 +168,10 @@ import MainGridLayout from "../layouts/MainGridLayout.astro";
 			</div>
 			<div class="flex gap-2">
 				<button id="admin-timeline-refresh" type="button" class="btn-regular rounded-lg px-4 py-2 text-sm font-bold">刷新</button>
-				<button type="button" data-admin-collapse aria-expanded="true" class="btn-regular rounded-lg px-3 py-2 text-sm font-bold">收起</button>
+				<button type="button" data-admin-collapse aria-expanded="false" class="btn-regular rounded-lg px-3 py-2 text-sm font-bold">展开</button>
 			</div>
 		</div>
-		<div data-admin-section-content class="space-y-5">
+		<div data-admin-section-content class="hidden space-y-5">
 			<form id="admin-timeline-form" class="flex flex-col gap-3 sm:flex-row">
 				<label class="min-w-0 flex-1 text-sm font-medium text-black/70">
 					新活动内容 <span class="text-red-600">*</span>
@@ -121,10 +195,10 @@ import MainGridLayout from "../layouts/MainGridLayout.astro";
 			</div>
 			<div class="flex gap-2">
 				<button id="admin-notes-refresh" type="button" class="btn-regular rounded-lg px-4 py-2 text-sm font-bold">刷新</button>
-				<button type="button" data-admin-collapse aria-expanded="true" class="btn-regular rounded-lg px-3 py-2 text-sm font-bold">收起</button>
+				<button type="button" data-admin-collapse aria-expanded="false" class="btn-regular rounded-lg px-3 py-2 text-sm font-bold">展开</button>
 			</div>
 		</div>
-		<div data-admin-section-content class="space-y-5">
+		<div data-admin-section-content class="hidden space-y-5">
 			<p id="admin-notes-message" class="hidden rounded-lg px-4 py-3 text-sm" role="status"></p>
 			<form id="admin-note-edit-form" class="hidden space-y-4 rounded-xl border border-[var(--primary)]/30 bg-white/35 p-4 md:p-5">
 				<div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
@@ -154,10 +228,10 @@ import MainGridLayout from "../layouts/MainGridLayout.astro";
 			</div>
 			<div class="flex gap-2">
 				<button id="admin-comments-refresh" type="button" class="btn-regular rounded-lg px-4 py-2 text-sm font-bold">刷新</button>
-				<button type="button" data-admin-collapse aria-expanded="true" class="btn-regular rounded-lg px-3 py-2 text-sm font-bold">收起</button>
+				<button type="button" data-admin-collapse aria-expanded="false" class="btn-regular rounded-lg px-3 py-2 text-sm font-bold">展开</button>
 			</div>
 		</div>
-		<div data-admin-section-content>
+		<div data-admin-section-content class="hidden">
 			<p id="admin-comments-message" class="hidden rounded-lg px-4 py-3 text-sm" role="status"></p>
 			<div id="admin-comments-list" class="space-y-3">
 				<p class="rounded-lg bg-[var(--btn-regular-bg)] px-4 py-4 text-black/55">正在读取待审核评论……</p>
@@ -174,11 +248,11 @@ import MainGridLayout from "../layouts/MainGridLayout.astro";
 			</div>
 			<div class="flex gap-2">
 				<button id="admin-activity-refresh" type="button" class="btn-regular rounded-lg px-4 py-2 text-sm font-bold">刷新</button>
-				<button type="button" data-admin-collapse aria-expanded="true" class="btn-regular rounded-lg px-3 py-2 text-sm font-bold">收起</button>
+				<button type="button" data-admin-collapse aria-expanded="false" class="btn-regular rounded-lg px-3 py-2 text-sm font-bold">展开</button>
 			</div>
 		</div>
 
-		<div data-admin-section-content>
+		<div data-admin-section-content class="hidden">
 			<div id="admin-activity-loading" class="rounded-lg bg-[var(--btn-regular-bg)] px-4 py-4 text-black/55">正在读取用户活动……</div>
 			<p id="admin-activity-message" class="hidden rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert"></p>
 
