@@ -895,7 +895,6 @@ async function reviewNoteSubmission(
 		} else {
 			setAdminMessage(panelMessage, "投稿已驳回，理由将显示给投稿者。");
 		}
-		void loadNoteSubmissions(root);
 		void loadAdminActivity(root);
 	} catch (error) {
 		setAdminMessage(
@@ -1464,9 +1463,11 @@ export function initAccountPage() {
 				);
 			loading?.classList.add("hidden");
 			details?.classList.remove("hidden");
-			submissionPanel?.classList.remove("hidden");
-			bindNoteSubmissions(root);
-			void loadNoteSubmissions(root);
+			if (result.user.role !== "admin") {
+				submissionPanel?.classList.remove("hidden");
+				bindNoteSubmissions(root);
+				void loadNoteSubmissions(root);
+			}
 
 			if (result.user.role === "admin" && adminSections.length) {
 				adminNavigation?.classList.remove("hidden");
