@@ -39,6 +39,9 @@ import AuthLayout from "../layouts/AuthLayout.astro";
 		<button id="login-submit" type="submit" class="auth-submit">Sign In</button>
 	</form>
 
+	<button id="guest-entry" type="button" class="mt-4 flex w-full items-center justify-center rounded-lg border border-[var(--primary)]/30 bg-white/40 px-4 py-3 font-bold text-[var(--primary)] transition hover:bg-white/60">Continue as Guest</button>
+	<p class="mt-2 text-center text-xs text-black/50">Browse published content. Sign in to like, comment, or submit notes.</p>
+
 	<p class="mt-6 text-center text-sm text-black/50">
 		No account yet?
 		<a href="/register/" data-astro-reload class="font-medium text-[var(--primary)] hover:underline">Register</a>
@@ -106,6 +109,25 @@ import AuthLayout from "../layouts/AuthLayout.astro";
 	const password = document.querySelector<HTMLInputElement>("#login-password");
 	const message = document.querySelector<HTMLParagraphElement>("#login-message");
 	const submit = document.querySelector<HTMLButtonElement>("#login-submit");
+	const guest = document.querySelector<HTMLButtonElement>("#guest-entry");
+	guest?.addEventListener("click", async () => {
+		guest.disabled = true;
+		message?.classList.add("hidden");
+		try {
+			const response = await fetch("/api/auth/guest", { method: "POST" });
+			const result = await response.json();
+			if (!response.ok) throw new Error(result.error || "Guest access is unavailable.");
+			window.location.assign("/");
+		} catch (error) {
+			if (message) {
+				message.textContent = error instanceof Error ? error.message : "Guest access is unavailable.";
+				message.dataset.kind = "error";
+				message.classList.remove("hidden");
+			}
+		} finally {
+			guest.disabled = false;
+		}
+	});
 
 	form?.addEventListener("submit", async (event) => {
 		event.preventDefault();

@@ -12,15 +12,16 @@ const { noteKey } = Astro.props;
 			<h2 class="font-serif text-2xl font-bold text-black/85">Interactions</h2>
 			<p class="mt-1 text-sm text-black/50">Only signed-in users can like notes and submit comments</p>
 		</div>
-		<button type="button" class="note-like-button btn-regular rounded-full px-4 py-2 font-bold" aria-pressed="false">
+		<button type="button" disabled class="note-like-button btn-regular rounded-full px-4 py-2 font-bold disabled:cursor-default" aria-pressed="false">
 			<span class="note-like-label">Like</span>
 			<span class="note-like-count ml-1 text-black/45">0</span>
 		</button>
 	</div>
 
 	<p class="note-interaction-message mt-4 hidden rounded-lg px-4 py-3 text-sm" role="status"></p>
+	<p class="note-guest-prompt mt-4 hidden text-sm text-black/60">You are browsing as a guest. <a href="/login/" data-astro-reload class="note-sign-in font-bold text-[var(--primary)] underline">Sign in</a> to like or comment.</p>
 
-	<form class="note-comment-form mt-5">
+	<form class="note-comment-form mt-5 hidden">
 		<label class="mb-2 block font-bold text-black/75" for={`note-comment-${noteKey.replaceAll(/[^a-z0-9]/giu, "-")}`}>Leave a Comment</label>
 		<textarea
 			id={`note-comment-${noteKey.replaceAll(/[^a-z0-9]/giu, "-")}`}

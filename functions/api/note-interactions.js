@@ -5,7 +5,11 @@ export async function onRequestGet(context) {
 	const noteKey = new URL(context.request.url).searchParams.get("note") || "";
 	try {
 		const resolved = await resolvePublishedNote(context.env.DB, noteKey);
-		if (!resolved) return json({ error: "Interactions are available only for published notes." }, 404);
+		if (!resolved)
+			return json(
+				{ error: "Interactions are available only for published notes." },
+				404,
+			);
 
 		const [likes, liked, comments] = await context.env.DB.batch([
 			context.env.DB.prepare(
@@ -13,7 +17,7 @@ export async function onRequestGet(context) {
 			).bind(noteKey),
 			context.env.DB.prepare(
 				"SELECT 1 AS liked FROM note_likes WHERE note_key = ?1 AND user_id = ?2",
-			).bind(noteKey, context.data.user.id),
+			).bind(noteKey, context.data?.user?.id || null),
 			context.env.DB.prepare(
 				`SELECT id, author_name, content, created_at
 				 FROM note_comments
@@ -22,12 +26,16 @@ export async function onRequestGet(context) {
 			).bind(noteKey),
 		]);
 		return json({
+			canInteract: Boolean(context.data?.user),
 			likeCount: Number(likes.results?.[0]?.count || 0),
 			liked: Boolean(liked.results?.length),
 			comments: comments.results || [],
 		});
 	} catch (error) {
 		console.error("Note interactions lookup failed:", error.message);
-		return json({ error: "Failed to load interactions. Please try again later." }, 500);
+		return json(
+			{ error: "Failed to load interactions. Please try again later." },
+			500,
+		);
 	}
 }

@@ -61,12 +61,27 @@ async function loadInteractions(root: HTMLElement) {
 			{ cache: "no-store" },
 		);
 		const result = await response.json();
-		if (!response.ok) throw new Error(result.error || "Failed to load interactions.");
+		if (!response.ok)
+			throw new Error(result.error || "Failed to load interactions.");
 		const button = root.querySelector<HTMLButtonElement>(".note-like-button");
 		const label = root.querySelector<HTMLElement>(".note-like-label");
 		const count = root.querySelector<HTMLElement>(".note-like-count");
-		if (button) button.setAttribute("aria-pressed", String(result.liked));
-		if (label) label.textContent = result.liked ? "Liked" : "Like";
+		if (button) {
+			button.setAttribute("aria-pressed", String(result.liked));
+			button.disabled = !result.canInteract;
+		}
+		root
+			.querySelector(".note-comment-form")
+			?.classList.toggle("hidden", !result.canInteract);
+		root
+			.querySelector(".note-guest-prompt")
+			?.classList.toggle("hidden", result.canInteract);
+		if (label)
+			label.textContent = result.canInteract
+				? result.liked
+					? "Liked"
+					: "Like"
+				: "Likes";
 		if (count) count.textContent = String(result.likeCount || 0);
 		renderComments(root, result.comments || []);
 	} catch (error) {
@@ -86,6 +101,9 @@ function bindInteraction(root: HTMLElement) {
 	const form = root.querySelector<HTMLFormElement>(".note-comment-form");
 	const input = root.querySelector<HTMLTextAreaElement>(".note-comment-input");
 	const characterCount = root.querySelector<HTMLElement>(".note-comment-count");
+	const signIn = root.querySelector<HTMLAnchorElement>(".note-sign-in");
+	if (signIn)
+		signIn.href = `/login/?next=${encodeURIComponent(window.location.pathname + window.location.search)}`;
 	input?.addEventListener("input", () => {
 		const characters = Array.from(input.value);
 		if (characters.length > 500)
@@ -103,7 +121,8 @@ function bindInteraction(root: HTMLElement) {
 				body: JSON.stringify({ note: root.dataset.noteKey }),
 			});
 			const result = await response.json();
-			if (!response.ok) throw new Error(result.error || "Failed to update the like.");
+			if (!response.ok)
+				throw new Error(result.error || "Failed to update the like.");
 			like.setAttribute("aria-pressed", String(result.liked));
 			const label = root.querySelector<HTMLElement>(".note-like-label");
 			const count = root.querySelector<HTMLElement>(".note-like-count");
@@ -137,14 +156,20 @@ function bindInteraction(root: HTMLElement) {
 				}),
 			});
 			const result = await response.json();
-			if (!response.ok) throw new Error(result.error || "Failed to submit the comment.");
+			if (!response.ok)
+				throw new Error(result.error || "Failed to submit the comment.");
 			input.value = "";
 			if (characterCount) characterCount.textContent = "0";
-			setMessage(root, result.message || "Your comment has been submitted for review.");
+			setMessage(
+				root,
+				result.message || "Your comment has been submitted for review.",
+			);
 		} catch (error) {
 			setMessage(
 				root,
-				error instanceof Error ? error.message : "Failed to submit the comment.",
+				error instanceof Error
+					? error.message
+					: "Failed to submit the comment.",
 				true,
 			);
 		} finally {

@@ -1,6 +1,7 @@
 const textEncoder = new TextEncoder();
 
 export const SESSION_COOKIE_NAME = "digvps_session";
+export const GUEST_COOKIE_NAME = "digvps_guest";
 export const SESSION_TTL_SECONDS = 3 * 24 * 60 * 60;
 export const VERIFICATION_TTL_SECONDS = 10 * 60;
 export const VERIFICATION_RESEND_SECONDS = 60;
@@ -87,7 +88,8 @@ export function validatePassword(password) {
 	if (typeof password !== "string" || password.length < 8) {
 		return "The password must contain at least 8 characters.";
 	}
-	if (password.length > 128) return "The password cannot exceed 128 characters.";
+	if (password.length > 128)
+		return "The password cannot exceed 128 characters.";
 	return null;
 }
 

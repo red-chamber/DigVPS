@@ -15,7 +15,9 @@ import {
 	onRequestDelete as deleteTimelineEvent,
 	onRequestPost as publishTimelineEvent,
 } from "../functions/api/admin/timeline.js";
+import { onRequestPost as enterGuestMode } from "../functions/api/auth/guest.js";
 import { onRequestPost as submitComment } from "../functions/api/note-comments.js";
+import { onRequestGet as readInteractions } from "../functions/api/note-interactions.js";
 import { onRequestPost as submitNote } from "../functions/api/note-submissions.js";
 import { onRequestGet as getPublishedNote } from "../functions/api/published-note.js";
 import {
@@ -212,13 +214,14 @@ function fakeDb(sessionRow = null, paused = false) {
 
 async function runMiddleware({
 	url,
+	method = "GET",
 	headers = {},
 	env = {},
 	row = null,
 	paused = false,
 }) {
 	return authMiddleware({
-		request: new Request(url, { headers }),
+		request: new Request(url, { headers, method }),
 		env: { ...env, DB: env.DB || fakeDb(row, paused) },
 		data: {},
 		next: async () =>
@@ -304,6 +307,165 @@ const protectedApi = await runMiddleware({
 	env: configuredEnv,
 });
 assert.equal(protectedApi.status, 401);
+
+const guestEntry = enterGuestMode({
+	request: new Request("https://cedrian.cn/api/auth/guest", {
+		method: "POST",
+		headers: { Origin: "https://cedrian.cn" },
+	}),
+});
+assert.equal(guestEntry.status, 200);
+assert.match(
+	guestEntry.headers.get("Set-Cookie"),
+	/digvps_guest=1; Path=\/; HttpOnly; Secure; SameSite=Lax/u,
+);
+assert.equal(
+	enterGuestMode({
+		request: new Request("https://cedrian.cn/api/auth/guest", {
+			method: "POST",
+			headers: { Origin: "https://other.example" },
+		}),
+	}).status,
+	403,
+);
+
+const guestHeaders = { Cookie: "digvps_guest=1" };
+for (const path of [
+	"/",
+	"/about/",
+	"/archive/",
+	"/notes/?tag=Linux",
+	"/notes/read/?slug=test-note",
+	"/api/published-notes",
+	"/api/published-note?slug=test-note",
+	"/api/timeline",
+	"/api/note-interactions?note=dynamic:test-note",
+]) {
+	const response = await runMiddleware({
+		url: `https://cedrian.cn${path}`,
+		headers: guestHeaders,
+		env: configuredEnv,
+	});
+	assert.equal(response.status, 200, `Guest can read ${path}`);
+	assert.equal(response.headers.get("Cache-Control"), "private, no-store");
+	const pausedResponse = await runMiddleware({
+		url: `https://cedrian.cn${path}`,
+		headers: guestHeaders,
+		env: configuredEnv,
+		paused: true,
+	});
+	assert.equal(pausedResponse.status, 403, `Pause blocks guest ${path}`);
+}
+for (const path of [
+	"/api/auth/me",
+	"/api/note-submissions",
+	"/api/admin/notes",
+	"/api/admin/note-submissions",
+	"/api/admin/activity",
+]) {
+	assert.equal(
+		(
+			await runMiddleware({
+				url: `https://cedrian.cn${path}`,
+				headers: guestHeaders,
+				env: configuredEnv,
+			})
+		).status,
+		401,
+	);
+}
+for (const method of ["POST", "PUT", "PATCH", "DELETE"]) {
+	for (const path of [
+		"/api/note-like",
+		"/api/note-comments",
+		"/api/note-submissions",
+		"/api/admin/notes",
+		"/api/published-notes",
+		"/api/note-interactions",
+	]) {
+		assert.equal(
+			(
+				await runMiddleware({
+					url: `https://cedrian.cn${path}`,
+					method,
+					headers: guestHeaders,
+					env: configuredEnv,
+				})
+			).status,
+			401,
+			`Guest denied ${method} ${path}`,
+		);
+	}
+}
+assert.equal(
+	(
+		await runMiddleware({
+			url: "https://cedrian.cn/account/",
+			headers: guestHeaders,
+			env: configuredEnv,
+		})
+	).status,
+	302,
+);
+assert.equal(
+	(
+		await runMiddleware({
+			url: "https://cedrian.cn/api/auth/guest",
+			method: "POST",
+			env: configuredEnv,
+			paused: true,
+		})
+	).status,
+	403,
+);
+assert.equal(
+	(
+		await runMiddleware({
+			url: "https://cedrian.cn/login/",
+			headers: guestHeaders,
+			env: configuredEnv,
+		})
+	).status,
+	200,
+);
+
+// Guest interaction reads have no user identity and expose only approved comments.
+const guestInteractionDb = {
+	prepare(sql) {
+		return {
+			sql,
+			bind(...values) {
+				this.values = values;
+				return this;
+			},
+			async first() {
+				return { slug: "test-note", title: "Test Note" };
+			},
+		};
+	},
+	async batch(statements) {
+		assert.equal(statements[1].values[1], null);
+		assert.match(statements[2].sql, /status = 'approved'/u);
+		return [
+			{ results: [{ count: 2 }] },
+			{ results: [] },
+			{ results: [{ id: "approved-comment", content: "Published comment" }] },
+		];
+	},
+};
+const guestInteractions = await readInteractions({
+	request: new Request(
+		"https://cedrian.cn/api/note-interactions?note=dynamic:test-note",
+	),
+	data: { user: null },
+	env: { DB: guestInteractionDb },
+});
+assert.equal(guestInteractions.status, 200);
+const guestInteractionBody = await guestInteractions.json();
+assert.equal(guestInteractionBody.canInteract, false);
+assert.equal(guestInteractionBody.liked, false);
+assert.equal(guestInteractionBody.likeCount, 2);
+assert.equal(guestInteractionBody.comments.length, 1);
 
 const validSession = await runMiddleware({
 	url: "https://cedrian.cn/",

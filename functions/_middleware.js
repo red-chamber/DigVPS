@@ -1,7 +1,9 @@
 import {
 	authIsConfigured,
+	GUEST_COOKIE_NAME,
 	getSession,
 	json,
+	parseCookies,
 	sha256,
 	timingSafeEqual,
 } from "../server/auth.js";
@@ -18,6 +20,19 @@ const PUBLIC_AUTH_APIS = new Set([
 	"/api/auth/login",
 	"/api/auth/register",
 	"/api/auth/verify",
+	"/api/auth/guest",
+]);
+// A guest preference grants only these read routes, never a user identity.
+const GUEST_READ_PATHS = new Set([
+	"/",
+	"/about",
+	"/archive",
+	"/notes",
+	"/notes/read",
+	"/api/published-notes",
+	"/api/published-note",
+	"/api/timeline",
+	"/api/note-interactions",
 ]);
 const SITE_ACCESS_PATH = "/api/site-access";
 const PUBLIC_ASSET_PREFIXES = [
@@ -172,13 +187,17 @@ export const onRequest = async (context) => {
 			: next();
 	}
 	if (PUBLIC_AUTH_APIS.has(pathname)) return next();
-	if (!session) {
+	const guestRead =
+		parseCookies(request).get(GUEST_COOKIE_NAME) === "1" &&
+		(request.method === "GET" || request.method === "HEAD") &&
+		GUEST_READ_PATHS.has(pathname);
+	if (!session && !guestRead) {
 		return pathname.startsWith("/api/")
 			? json({ error: "You are not signed in." }, 401)
 			: loginRedirect(url);
 	}
 
-	context.data.user = session.user;
+	context.data.user = session?.user || null;
 	const response = await next();
 	const contentType = response.headers.get("Content-Type") || "";
 	if (!contentType.includes("text/html")) return response;
