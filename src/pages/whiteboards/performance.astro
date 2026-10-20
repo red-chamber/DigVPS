@@ -1,0 +1,8 @@
+---
+import CanvasPerformance from "@components/canvas/CanvasPerformance.svelte";
+import CanvasLayout from "@layouts/CanvasLayout.astro";
+---
+
+<CanvasLayout title="Whiteboard performance test" description="A 500 or 1000 node whiteboard stress test.">
+	<CanvasPerformance client:only="svelte" />
+</CanvasLayout>

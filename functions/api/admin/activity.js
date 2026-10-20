@@ -17,6 +17,8 @@ const IMPORTANT_EVENTS_SQL = `
 	'note_updated',
 	'note_deleted',
 	'note_liked',
+	'whiteboard_created',
+	'whiteboard_deleted',
 	'timeline_event_published',
 	'timeline_event_deleted',
 	'site_access_paused',

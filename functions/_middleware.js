@@ -29,10 +29,16 @@ const GUEST_READ_PATHS = new Set([
 	"/archive",
 	"/notes",
 	"/notes/read",
+	"/whiteboards",
+	"/whiteboards/edit",
+	"/whiteboards/demo",
+	"/whiteboards/performance",
 	"/api/published-notes",
 	"/api/published-note",
 	"/api/timeline",
 	"/api/note-interactions",
+	"/api/whiteboards",
+	"/api/whiteboard-assets",
 ]);
 const SITE_ACCESS_PATH = "/api/site-access";
 const PUBLIC_ASSET_PREFIXES = [

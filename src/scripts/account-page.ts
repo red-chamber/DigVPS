@@ -55,6 +55,8 @@ const activityLabels: Record<string, string> = {
 	comment_approved: "接纳评论",
 	comment_rejected: "驳回评论",
 	note_published: "发布笔记",
+	whiteboard_created: "创建白板",
+	whiteboard_deleted: "删除白板",
 	note_updated: "更新笔记",
 	note_deleted: "删除笔记",
 	note_liked: "点赞笔记",

@@ -1,0 +1,26 @@
+---
+import Navbar from "@components/Navbar.astro";
+import Layout from "./Layout.astro";
+
+interface Props {
+	title?: string;
+	description?: string;
+}
+
+const { title = "Whiteboard", description } = Astro.props;
+---
+
+<Layout title={title} description={description}>
+	<div class="canvas-shell">
+		<div id="navbar-wrapper" class="canvas-navbar"><Navbar /></div>
+		<main id="swup-container" class="canvas-main transition-swup-fade"><slot /></main>
+	</div>
+</Layout>
+
+<style>
+	.canvas-shell { position: fixed; inset: 0; z-index: 20; display: grid; grid-template-rows: 4.5rem minmax(0, 1fr); background: var(--page-bg); }
+	.canvas-navbar { position: relative; z-index: 200; padding: 0 1rem; pointer-events: auto; }
+	.canvas-main { min-height: 0; overflow: hidden; }
+	:global(.canvas-navbar #navbar > div) { border-radius: 0 0 .75rem .75rem !important; }
+	@media (max-width: 768px) { .canvas-navbar { padding: 0; } }
+</style>

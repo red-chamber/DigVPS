@@ -1,0 +1,8 @@
+---
+import AdvancedCanvasEditor from "@components/canvas/AdvancedCanvasEditor.svelte";
+import CanvasLayout from "@layouts/CanvasLayout.astro";
+---
+
+<CanvasLayout title="Whiteboard" description="An infinite canvas for connected ideas.">
+	<AdvancedCanvasEditor client:only="svelte" />
+</CanvasLayout>

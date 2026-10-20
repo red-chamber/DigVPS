@@ -35,6 +35,11 @@ export const siteConfig: SiteConfig = {
 export const navBarConfig: NavBarConfig = {
 	links: [
 		{
+			name: "Whiteboard",
+			url: "/whiteboards/",
+			external: false,
+		},
+		{
 			name: "Notes",
 			url: "/notes/",
 			external: false,

@@ -1,0 +1,8 @@
+---
+import CanvasDemo from "@components/canvas/CanvasDemo.svelte";
+import CanvasLayout from "@layouts/CanvasLayout.astro";
+---
+
+<CanvasLayout title="Whiteboard demo" description="A local, editable whiteboard demonstration.">
+	<CanvasDemo client:only="svelte" />
+</CanvasLayout>

@@ -1,0 +1,8 @@
+---
+import WhiteboardDirectory from "@components/canvas/WhiteboardDirectory.svelte";
+import MainGridLayout from "@layouts/MainGridLayout.astro";
+---
+
+<MainGridLayout title="Whiteboards" description="Infinite whiteboards for connected notes and ideas.">
+	<WhiteboardDirectory client:only="svelte" />
+</MainGridLayout>
