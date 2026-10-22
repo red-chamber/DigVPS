@@ -11,7 +11,7 @@ const { title = "Whiteboard", description } = Astro.props;
 ---
 
 <Layout title={title} description={description}>
-	<div class="canvas-shell">
+	<div class="canvas-shell" data-no-swup>
 		<div id="navbar-wrapper" class="canvas-navbar"><Navbar /></div>
 		<main id="swup-container" class="canvas-main transition-swup-fade"><slot /></main>
 	</div>

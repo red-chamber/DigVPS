@@ -133,10 +133,10 @@ onMount(load);
 					<div class="preview" aria-hidden="true"><span></span><span></span><i></i></div>
 					<div class="content">
 						<p class="meta"><span>{board.category}</span><time datetime={new Date(board.updatedAt * 1000).toISOString()}>{new Date(board.updatedAt * 1000).toLocaleDateString()}</time></p>
-						<h2><a href={`/whiteboards/edit/?id=${encodeURIComponent(board.id)}`}>{board.title}</a></h2>
+						<h2><a data-no-swup href={`/whiteboards/edit/?id=${encodeURIComponent(board.id)}`}>{board.title}</a></h2>
 						<p>{board.description}</p>
 						<div class="tags">{#each board.tags as tag}<span>#{tag}</span>{/each}</div>
-						<div class="card-actions"><a class="open" href={`/whiteboards/edit/?id=${encodeURIComponent(board.id)}`}>{board.canEdit ? "Open editor" : "View canvas"} →</a>{#if board.canEdit}<button on:click={() => remove(board)}>Delete</button>{/if}</div>
+						<div class="card-actions"><a data-no-swup class="open" href={`/whiteboards/edit/?id=${encodeURIComponent(board.id)}`}>{board.canEdit ? "Open editor" : "View canvas"} →</a>{#if board.canEdit}<button on:click={() => remove(board)}>Delete</button>{/if}</div>
 					</div>
 				</article>
 			{/each}
