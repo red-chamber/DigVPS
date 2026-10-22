@@ -41,3 +41,21 @@ test("restores the site layout when leaving the whiteboard editor", async ({
 	await expect(page.locator(".directory")).toHaveCount(1);
 	await expect(page.locator(".canvas-shell")).toHaveCount(0);
 });
+
+test("keeps the mobile navigation panel hidden on the desktop canvas", async ({
+	page,
+}) => {
+	await page.goto("/whiteboards/demo/");
+
+	await expect(page.locator("#nav-menu-panel")).toBeHidden();
+});
+
+test("opens the navigation panel on a mobile canvas", async ({ page }) => {
+	await page.setViewportSize({ width: 390, height: 844 });
+	await page.goto("/whiteboards/demo/");
+	const panel = page.locator("#nav-menu-panel");
+
+	await expect(panel).toHaveCSS("opacity", "0");
+	await page.getByRole("button", { name: "Menu" }).click();
+	await expect(panel).toHaveCSS("opacity", "1");
+});
