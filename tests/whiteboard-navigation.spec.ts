@@ -59,3 +59,14 @@ test("opens the navigation panel on a mobile canvas", async ({ page }) => {
 	await page.getByRole("button", { name: "Menu" }).click();
 	await expect(panel).toHaveCSS("opacity", "1");
 });
+
+test("hides the whiteboard entry from public and account navigation", async ({
+	page,
+}) => {
+	for (const path of ["/", "/account/"]) {
+		await page.goto(path);
+		await expect(
+			page.locator('#navbar a[href="/whiteboards/"]'),
+		).toHaveCount(0);
+	}
+});
