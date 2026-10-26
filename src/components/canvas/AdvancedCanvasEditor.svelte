@@ -1122,7 +1122,6 @@ onMount(() => {
 </div>
 
 <style>
-	:global(body) { overflow: hidden; }
 	.canvas-editor { --surface: #f5fafb; --panel: rgba(255,255,255,.92); --ink: #18363c; --muted: #668087; --line: #c8d9dd; --accent: #168898; position: relative; width: 100%; height: 100%; min-height: 560px; overflow: hidden; background: var(--surface); color: var(--ink); font: 14px/1.45 Roboto, system-ui, sans-serif; }
 	.canvas-editor.dark { --surface: #101d21; --panel: rgba(23,39,44,.94); --ink: #e8f4f5; --muted: #9ab0b5; --line: #3c555b; }
 	.toolbar { position: absolute; inset: 10px 12px auto; z-index: 100; height: 46px; display: flex; align-items: center; gap: 4px; padding: 5px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); box-shadow: 0 8px 30px #173b421b; backdrop-filter: blur(16px); }
